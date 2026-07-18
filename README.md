@@ -12,6 +12,28 @@ Recruiter AI is a cutting-edge, stateful multi-agent recruitment platform design
 - **Third-Party Integrations:** API-ready endpoints for initiating background checks (AuthBridge), triggering technical assessments (HackerEarth), syncing ATS records (Zoho Recruit), and onboarding (Keka HRMS).
 - **AI Chat Assistant:** A built-in LLM-powered mentor/assistant restricted to retrieving only HR and candidate-related insights.
 
+## 👥 Role-Based Access Control (RBAC)
+
+The platform is designed with three distinct user roles, each with specific permissions:
+
+### 🎯 Recruiter
+The primary operator of the platform.
+- **Upload:** Upload and parse candidate resumes.
+- **Analyze:** Trigger the multi-agent evaluation pipeline.
+- **Chat:** Ask the AI assistant questions about candidate matching.
+
+### 👔 Hiring Manager
+The decision-maker reviewing the recruiter's shortlisted candidates.
+- **View:** Access the dashboard to view candidate profiles, match scores, and parsed skills.
+- **Comment:** Leave feedback on specific candidate profiles.
+- **Approve:** Finalize decisions based on AI recommendations.
+
+### 🛡️ Admin
+The system overseer.
+- **Manage Users:** Create, edit, and delete user accounts (Recruiters, Hiring Managers).
+- **System Monitoring:** View platform analytics (total candidates, processed resumes, average scores).
+- **Logs:** Access system and agent execution logs for debugging.
+
 ## 🏗️ System Architecture
 
 The repository is split into two primary components:
