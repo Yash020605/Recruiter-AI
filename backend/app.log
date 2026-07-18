@@ -1,0 +1,49 @@
+2026-07-18 09:33:25 - backend.main - INFO - Initializing database schema...
+2026-07-18 09:33:25 - backend.main - INFO - Initializing database schema...
+2026-07-18 09:33:44 - backend.main - INFO - Initializing database schema...
+2026-07-18 09:51:39 - backend.main - INFO - Initializing database schema...
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-18 09:54:31 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-18 09:54:31 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:57:17 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-07-18 09:57:17 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-18 09:57:17 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-18 09:57:17 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-18 09:57:17 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-07-18 09:57:17 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-18 09:57:17 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-18 09:57:17 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-18 10:14:02 - backend.main - INFO - Initializing database schema...
+2026-07-18 10:14:45 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 1
+2026-07-18 10:15:49 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 3
+2026-07-18 10:17:57 - backend.api.routes - INFO - Pipeline completed with score: 91.0
+2026-07-18 10:17:57 - backend.api.routes - ERROR - Failed to save final state to DB: name 'json' is not defined
+2026-07-18 10:18:25 - backend.api.routes - INFO - Pipeline completed with score: 90.0
+2026-07-18 10:18:25 - backend.api.routes - ERROR - Failed to save final state to DB: name 'json' is not defined
+2026-07-18 10:22:38 - backend.main - INFO - Initializing database schema...
+2026-07-18 10:37:22 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 4
+2026-07-18 10:40:14 - backend.api.routes - INFO - Pipeline completed with score: 92.75
+2026-07-18 10:40:14 - backend.api.routes - ERROR - Failed to save final state to DB: name 'json' is not defined
+2026-07-18 10:45:42 - backend.main - INFO - Initializing database schema...
+2026-07-18 10:46:16 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 4
+2026-07-18 10:47:52 - backend.api.routes - INFO - Pipeline completed with score: 92.75
+2026-07-18 10:49:07 - backend.agents.chatbot_agent - ERROR - Chatbot Error: Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.
+2026-07-18 10:57:02 - backend.main - INFO - Initializing database schema...
+2026-07-18 12:06:45 - backend.main - INFO - Initializing database schema...
+2026-07-18 12:08:05 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 4
+2026-07-18 12:09:31 - backend.api.routes - INFO - Pipeline completed with score: 93.5
+2026-07-18 12:14:09 - backend.api.routes - INFO - Starting LangGraph pipeline for candidate 3
+2026-07-18 12:16:12 - backend.api.routes - INFO - Pipeline completed with score: 90.25
+2026-07-18 12:22:56 - backend.main - INFO - Initializing database schema...
+2026-07-18 15:15:36 - backend.main - INFO - Initializing database schema...

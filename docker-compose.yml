@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: recruiter
+      POSTGRES_PASSWORD: recruiter_password
+      POSTGRES_DB: recruiter_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recruiter -d recruiter_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - PROJECT_NAME=NEXUS AI Recruiter
+      - API_V1_STR=/api/v1
+      - DATABASE_URL=postgresql://recruiter:recruiter_password@db:5432/recruiter_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=super_secret_key_for_development_only_12345
+      - ALGORITHM=HS256
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./react-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8001/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
