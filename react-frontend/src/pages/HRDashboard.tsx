@@ -315,7 +315,8 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleIntegration = async (id: number, integration: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/integrations/${integration}/${id}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/v1/integrations/${integration}/${id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -335,7 +336,8 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     const url = window.prompt("Enter Naukri Profile URL:");
     if (!url) return;
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/integrations/naukri/import`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/v1/integrations/naukri/import`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -365,7 +367,8 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     setIsChatLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/chat', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/v1/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

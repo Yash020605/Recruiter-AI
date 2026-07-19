@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: recruiter-ai-backend
+    env: python
+    region: oregon
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: recruiter-ai-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      # If using real integrations instead of mock, populate these in Render dashboard
+      - key: ZOHO_CLIENT_ID
+        sync: false
+      - key: HACKEREARTH_CLIENT_SECRET
+        sync: false
+      - key: AUTHBRIDGE_TOKEN
+        sync: false
+      - key: KEKA_API_KEY
+        sync: false
+
+databases:
+  - name: recruiter-ai-db
+    databaseName: recruiter_ai
+    user: recruiter_user
+    region: oregon
+    plan: free
