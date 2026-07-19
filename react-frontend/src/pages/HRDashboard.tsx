@@ -315,7 +315,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleIntegration = async (id: number, integration: string) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
       const response = await fetch(`${API_URL}/api/v1/integrations/${integration}/${id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -336,7 +336,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     const url = window.prompt("Enter Naukri Profile URL:");
     if (!url) return;
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
       const response = await fetch(`${API_URL}/api/v1/integrations/naukri/import`, {
         method: 'POST',
         headers: {
@@ -367,7 +367,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     setIsChatLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
       const response = await fetch(`${API_URL}/api/v1/chat`, {
         method: 'POST',
         headers: {

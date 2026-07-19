@@ -4,6 +4,9 @@
 
 Recruiter AI is a cutting-edge, stateful multi-agent recruitment platform designed to automate and augment the entire hiring lifecycle. By orchestrating a swarm of specialized AI agents (using LangGraph and LangChain), this platform parses resumes, evaluates candidate skills against job descriptions, and triggers automated integrations with industry-standard HR tools.
 
+## 🌍 Live Deployment
+- **Frontend (Vercel):** [https://recruiter-ai-rskq-ph26xer9s-yashlimbhore-gmailcoms-projects.vercel.app](https://recruiter-ai-rskq-ph26xer9s-yashlimbhore-gmailcoms-projects.vercel.app)
+- **Backend API (Railway):** [https://recruiter-ai-production-9983.up.railway.app](https://recruiter-ai-production-9983.up.railway.app)
 ## 🚀 Features
 
 - **Multi-Agent Evaluation:** Utilizes stateful LangGraph workflows to score candidate profiles autonomously. Agents extract skills, compare them to the Job Description, and assign a match score.
