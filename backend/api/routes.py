@@ -426,34 +426,9 @@ async def sync_zoho(candidate_id: int, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
     
-    if not settings.ZOHO_CLIENT_ID:
-        raise HTTPException(status_code=401, detail="ZOHO_CLIENT_ID is not configured in .env")
-
-    # Example real API call to Zoho Recruit
-    url = "https://recruit.zoho.com/recruit/v2/Candidates"
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {settings.ZOHO_CLIENT_ID}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "data": [{
-            "First_Name": candidate.name.split()[0] if candidate.name else "Unknown",
-            "Last_Name": " ".join(candidate.name.split()[1:]) if candidate.name and len(candidate.name.split()) > 1 else "Unknown",
-            "Email": candidate.email,
-            "Phone": candidate.phone,
-            "Candidate_Status": "New"
-        }]
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            zoho_id = data.get("data", [{}])[0].get("details", {}).get("id", f"ZOHO-REC-{random.randint(1000, 9999)}")
-    except httpx.HTTPError as e:
-        logger.error(f"Zoho API Error: {e}")
-        zoho_id = f"ZOHO-REC-{random.randint(1000, 9999)}"
+    # Mock integration delay
+    await asyncio.sleep(1.5)
+    zoho_id = f"ZOHO-REC-{random.randint(1000, 9999)}"
 
     updated = candidate_repo.update(db, db_obj=candidate, obj_in={"zoho_candidate_id": zoho_id})
     return {"status": "success", "zoho_candidate_id": zoho_id}
@@ -464,31 +439,9 @@ async def invite_hackerearth(candidate_id: int, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
     
-    if not settings.HACKEREARTH_CLIENT_SECRET:
-        raise HTTPException(status_code=401, detail="HACKEREARTH_CLIENT_SECRET is not configured in .env")
-
-    # Example real API call to HackerEarth
-    url = "https://api.hackerearth.com/v4/assessment/invite/"
-    headers = {
-        "client-secret": settings.HACKEREARTH_CLIENT_SECRET,
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "email": candidate.email,
-        "name": candidate.name,
-        "send_email": True
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            assessment_url = data.get("assessment_url", f"https://assess.hackerearth.com/test/{uuid.uuid4().hex[:8]}")
-    except httpx.HTTPError as e:
-        logger.error(f"HackerEarth API Error: {e}")
-        assessment_url = f"https://assess.hackerearth.com/test/{uuid.uuid4().hex[:8]}"
-        
+    # Mock integration delay
+    await asyncio.sleep(1.5)
+    assessment_url = f"https://assess.hackerearth.com/test/{uuid.uuid4().hex[:8]}"
     score = random.randint(60, 95)
 
     updated = candidate_repo.update(db, db_obj=candidate, obj_in={
@@ -503,32 +456,9 @@ async def initiate_bgv(candidate_id: int, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
     
-    if not settings.AUTHBRIDGE_TOKEN:
-        raise HTTPException(status_code=401, detail="AUTHBRIDGE_TOKEN is not configured in .env")
-
-    # Example real API call to AuthBridge
-    url = "https://api.authbridge.com/v1/bgv/initiate"
-    headers = {
-        "Authorization": f"Bearer {settings.AUTHBRIDGE_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "candidate": {
-            "name": candidate.name,
-            "email": candidate.email,
-            "mobile": candidate.phone
-        },
-        "checks": ["identity", "education", "criminal"]
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            status = "Pending"
-    except httpx.HTTPError as e:
-        logger.error(f"AuthBridge API Error: {e}")
-        status = "Pending"
+    # Mock integration delay
+    await asyncio.sleep(1.5)
+    status = "Pending"
 
     updated = candidate_repo.update(db, db_obj=candidate, obj_in={"authbridge_bgv_status": status})
     return {"status": "success", "authbridge_bgv_status": status}
@@ -539,32 +469,9 @@ async def onboard_keka(candidate_id: int, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
     
-    if not settings.KEKA_API_KEY:
-        raise HTTPException(status_code=401, detail="KEKA_API_KEY is not configured in .env")
-
-    # Example real API call to Keka
-    url = "https://api.keka.com/v1/hris/employees"
-    headers = {
-        "Authorization": f"Bearer {settings.KEKA_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "firstName": candidate.name.split()[0] if candidate.name else "Unknown",
-        "lastName": " ".join(candidate.name.split()[1:]) if candidate.name and len(candidate.name.split()) > 1 else "Unknown",
-        "email": candidate.email,
-        "mobile": candidate.phone,
-        "jobTitle": "New Hire"
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            keka_id = data.get("id", f"KEKA-EMP-{random.randint(100, 999)}")
-    except httpx.HTTPError as e:
-        logger.error(f"Keka API Error: {e}")
-        keka_id = f"KEKA-EMP-{random.randint(100, 999)}"
+    # Mock integration delay
+    await asyncio.sleep(1.5)
+    keka_id = f"KEKA-EMP-{random.randint(100, 999)}"
 
     updated = candidate_repo.update(db, db_obj=candidate, obj_in={"keka_employee_id": keka_id})
     return {"status": "success", "keka_employee_id": keka_id}
