@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 # Create database tables (For MVP, we use Base.metadata.create_all instead of Alembic migrations)
 logger.info("Initializing database schema...")
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
