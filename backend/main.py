@@ -11,12 +11,8 @@ from backend.api.routes import router as api_router
 from backend.api.integrations import router as integrations_router
 import time
 
-from sqlalchemy import text
 logger = get_logger(__name__)
 logger.info("Initializing database schema...")
-with engine.connect() as conn:
-    conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;"))
-    conn.commit()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
