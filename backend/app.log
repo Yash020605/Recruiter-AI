@@ -48,3 +48,50 @@
 2026-07-18 12:22:56 - backend.main - INFO - Initializing database schema...
 2026-07-18 15:15:36 - backend.main - INFO - Initializing database schema...
 2026-07-19 22:15:27 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:22:19 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:22:53 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:23:33 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:24:18 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:24:23 - backend.api.routes - ERROR - Failed to extract JD requirements: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-07-22 23:24:23 - backend.api.routes - ERROR - Failed to match candidate against JD: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-07-22 23:25:56 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:33:06 - backend.main - INFO - Initializing database schema...
+2026-07-22 23:34:49 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-22 23:34:49 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-22 23:34:51 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-22 23:34:51 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-22 23:35:04 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-07-22 23:35:04 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-07-22 23:35:06 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-07-22 23:35:06 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-07-22 23:35:29 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-22 23:35:29 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-22 23:35:31 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-22 23:35:31 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-22 23:36:17 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-22 23:36:17 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-23 19:18:45 - backend.main - INFO - Initializing database schema...
+2026-07-23 19:20:29 - backend.main - INFO - Initializing database schema...
+2026-07-23 19:25:25 - backend.main - INFO - Initializing database schema...
+2026-07-23 19:26:20 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-23 19:26:20 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-23 19:26:32 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-07-23 19:26:32 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-07-23 19:26:42 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-23 19:26:42 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-23 19:27:12 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-23 19:27:12 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-23 19:27:14 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-23 19:27:14 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-23 19:27:31 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-07-23 19:27:31 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-07-23 19:27:46 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-23 19:27:46 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-07-23 19:35:34 - backend.main - INFO - Initializing database schema...
+2026-07-23 19:37:44 - backend.main - INFO - Initializing database schema...
+2026-07-23 19:39:21 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-23 19:39:21 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-23 19:39:23 - backend.api.routes - INFO - Login attempt for user: admin
+2026-07-23 19:39:23 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-07-23 19:41:37 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-07-23 19:41:37 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.

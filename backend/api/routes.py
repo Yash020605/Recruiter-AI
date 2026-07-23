@@ -18,7 +18,7 @@ from backend.config.settings import settings
 from backend.database.postgres import get_db
 from backend.tools.candidate_database import user_repo, candidate_repo, comment_repo
 from backend.schemas.auth import Token
-from backend.database.models import UserRole, Candidate, Comment
+from backend.database.models import UserRole, Candidate, Comment, JobMatch
 from backend.schemas.candidate import CandidateResponse, CommentCreate, CommentResponse
 from backend.schemas.admin import UserCreate, UserUpdate, UserResponse
 from backend.utils.logger import get_logger, LOG_FILE
@@ -327,6 +327,197 @@ async def analyze_candidate(
         message="Candidate analysis has been queued and is running in the background."
     )
 
+# --- Job Match Endpoints ---
+class JobMatchRequest(BaseModel):
+    candidate_id: int
+    job_description: str
+
+class JobMatchResponse(BaseModel):
+    match_score: float
+    matched_skills: List[str]
+    missing_skills: List[str]
+    extra_skills: List[str]
+    summary: str
+
+@router.post("/job/match", response_model=JobMatchResponse, tags=["job"], dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))])
+def match_job_description(
+    request: JobMatchRequest,
+    db: Session = Depends(get_db)
+):
+    if not request.job_description.strip():
+        raise HTTPException(status_code=400, detail="Job description cannot be empty.")
+        
+    candidate = candidate_repo.get(db, id=request.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found.")
+        
+    # If candidate doesn't have parsed resume data, parse it on the fly
+    if (not candidate.skills or not candidate.experience) and candidate.resume_path:
+        from backend.agents.resume_agent import resume_agent_node
+        try:
+            parsed_data = resume_agent_node({"resume_path": candidate.resume_path})
+            candidate = candidate_repo.update(db, db_obj=candidate, obj_in={
+                "skills": json.dumps(parsed_data.get("skills", [])),
+                "experience": json.dumps(parsed_data.get("experience", [])),
+                "education": json.dumps(parsed_data.get("education", [])),
+                "projects": json.dumps(parsed_data.get("projects", [])),
+                "certifications": json.dumps(parsed_data.get("certifications", [])),
+                "current_company": parsed_data.get("current_company"),
+                "current_ctc": parsed_data.get("current_ctc"),
+                "expected_ctc": parsed_data.get("expected_ctc"),
+                "notice_period": parsed_data.get("notice_period"),
+                "preferred_location": parsed_data.get("preferred_location")
+            })
+        except Exception as parse_err:
+            logger.error(f"Error parsing resume on-the-fly for match: {parse_err}")
+            
+    if not candidate.skills:
+        raise HTTPException(status_code=400, detail="Candidate has no parsed resume data and resume could not be parsed.")
+
+    # 1. Extract requirements from JD using existing AI/LLM
+    from backend.agents.screening_agent import llm
+    from langchain_core.prompts import PromptTemplate
+
+    jd_prompt = PromptTemplate(
+        input_variables=["jd"],
+        template="""Extract key job requirements from the following Job Description.
+Return ONLY a valid JSON object with the following keys:
+- "technical_skills": array of strings (e.g., ["Python", "Docker"])
+- "soft_skills": array of strings (e.g., ["Communication", "Leadership"])
+- "experience": string describing experience required
+- "education": string describing education required
+- "certifications": array of strings of required/preferred certifications (or empty array)
+
+Job Description:
+{jd}
+
+Do not include any formatting other than the JSON block.
+"""
+    )
+    
+    try:
+        jd_chain = jd_prompt | llm
+        jd_res = jd_chain.invoke({"jd": request.job_description})
+        content = jd_res.content.strip()
+        if content.startswith("```json"):
+            content = content[7:-3]
+        elif content.startswith("```"):
+            content = content[3:-3]
+        jd_data = json.loads(content)
+    except Exception as e:
+        logger.error(f"Failed to extract JD requirements: {e}")
+        jd_data = {
+            "technical_skills": [],
+            "soft_skills": [],
+            "experience": "Not specified",
+            "education": "Not specified",
+            "certifications": []
+        }
+
+    # 2. Compare extracted requirements with parsed candidate data
+    try:
+        candidate_skills = json.loads(candidate.skills) if candidate.skills else []
+    except Exception:
+        candidate_skills = []
+    try:
+        candidate_experience = json.loads(candidate.experience) if candidate.experience else []
+    except Exception:
+        candidate_experience = []
+    try:
+        candidate_education = json.loads(candidate.education) if candidate.education else []
+    except Exception:
+        candidate_education = []
+    try:
+        candidate_projects = json.loads(candidate.projects) if candidate.projects else []
+    except Exception:
+        candidate_projects = []
+    try:
+        candidate_certifications = json.loads(candidate.certifications) if candidate.certifications else []
+    except Exception:
+        candidate_certifications = []
+
+    match_prompt = PromptTemplate(
+        input_variables=["jd_requirements", "candidate_skills", "candidate_experience", "candidate_education", "candidate_projects", "candidate_certifications"],
+        template="""You are an expert recruiter matching a candidate's resume details against a Job Description's extracted requirements.
+
+Extracted Job Requirements:
+{jd_requirements}
+
+Candidate Resume Details:
+- Skills (Technical & Soft): {candidate_skills}
+- Experience: {candidate_experience}
+- Education: {candidate_education}
+- Projects: {candidate_projects}
+- Certifications: {candidate_certifications}
+
+Please analyze the candidate against the requirements and provide the following:
+1. "matched_skills": A list of skills/keywords from the job description that the candidate HAS.
+2. "missing_skills": A list of skills/keywords from the job description that the candidate DOES NOT have.
+3. "extra_skills": A list of skills/certifications the candidate has that are NOT in the job description but are valuable.
+4. "match_score": An overall match percentage (0 to 100) based on how well the candidate's skills, experience, education, and certifications align with the job description.
+5. "summary": A short AI summary (2-3 sentences) explaining why the candidate is or is not a good match.
+
+Return ONLY a valid JSON object with the keys: "match_score" (number), "matched_skills" (array of strings), "missing_skills" (array of strings), "extra_skills" (array of strings), and "summary" (string).
+Do not include any formatting other than the JSON block.
+"""
+    )
+
+    try:
+        match_chain = match_prompt | llm
+        match_res = match_chain.invoke({
+            "jd_requirements": json.dumps(jd_data),
+            "candidate_skills": json.dumps(candidate_skills),
+            "candidate_experience": json.dumps(candidate_experience),
+            "candidate_education": json.dumps(candidate_education),
+            "candidate_projects": json.dumps(candidate_projects),
+            "candidate_certifications": json.dumps(candidate_certifications)
+        })
+        content = match_res.content.strip()
+        if content.startswith("```json"):
+            content = content[7:-3]
+        elif content.startswith("```"):
+            content = content[3:-3]
+        result = json.loads(content)
+    except Exception as e:
+        logger.error(f"Failed to match candidate against JD: {e}")
+        # Simple fallback
+        jd_skills_set = set(jd_data.get("technical_skills", []) + jd_data.get("soft_skills", []))
+        cand_skills_set = set(candidate_skills)
+        matched = list(jd_skills_set.intersection(cand_skills_set))
+        missing = list(jd_skills_set.difference(cand_skills_set))
+        extra = list(cand_skills_set.difference(jd_skills_set))
+        total_skills = len(jd_skills_set)
+        score = (len(matched) / total_skills * 100) if total_skills > 0 else 50
+        result = {
+            "match_score": round(score, 2),
+            "matched_skills": matched,
+            "missing_skills": missing,
+            "extra_skills": extra,
+            "summary": "Match computed using fallback keyword overlap logic due to LLM match error."
+        }
+
+    # Save the match details to the database for analytics
+    new_match = JobMatch(
+        candidate_id=request.candidate_id,
+        job_description=request.job_description,
+        match_score=float(result.get("match_score", 0.0)),
+        matched_skills=json.dumps(result.get("matched_skills", [])),
+        missing_skills=json.dumps(result.get("missing_skills", [])),
+        extra_skills=json.dumps(result.get("extra_skills", [])),
+        summary=result.get("summary", "")
+    )
+    db.add(new_match)
+    db.commit()
+    db.refresh(new_match)
+
+    return JobMatchResponse(
+        match_score=new_match.match_score,
+        matched_skills=json.loads(new_match.matched_skills),
+        missing_skills=json.loads(new_match.missing_skills),
+        extra_skills=json.loads(new_match.extra_skills),
+        summary=new_match.summary
+    )
+
 # --- Chat Endpoints ---
 class ChatRequest(BaseModel):
     candidate_id: Optional[int] = None
@@ -353,13 +544,68 @@ def get_analytics(db: Session = Depends(get_db)):
     completed = db.query(Candidate).filter(Candidate.match_score.isnot(None)).count()
     failed = db.query(Candidate).filter(Candidate.recommendation.ilike("AI Analysis Failed%")).count()
     
+    # Job Matching Statistics
+    job_matches = db.query(JobMatch).all()
+    total_matches = len(job_matches)
+    
+    if total_matches > 0:
+        avg_match_score = sum(m.match_score for m in job_matches) / total_matches
+        highest_match_score = max(m.match_score for m in job_matches)
+        lowest_match_score = min(m.match_score for m in job_matches)
+    else:
+        avg_match_score = 0.0
+        highest_match_score = 0.0
+        lowest_match_score = 0.0
+        
+    # Analyze Top Matched & Missing Skills
+    matched_skills_counts = {}
+    missing_skills_counts = {}
+    
+    for m in job_matches:
+        try:
+            m_skills = json.loads(m.matched_skills)
+            for s in m_skills:
+                s_clean = s.strip()
+                if s_clean:
+                    matched_skills_counts[s_clean] = matched_skills_counts.get(s_clean, 0) + 1
+        except Exception:
+            pass
+            
+        try:
+            miss_skills = json.loads(m.missing_skills)
+            for s in miss_skills:
+                s_clean = s.strip()
+                if s_clean:
+                    missing_skills_counts[s_clean] = missing_skills_counts.get(s_clean, 0) + 1
+        except Exception:
+            pass
+            
+    # Get top 5 sorted
+    top_matched = sorted(matched_skills_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_missing = sorted(missing_skills_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    
+    top_matched_list = [{"skill": k, "count": v} for k, v in top_matched]
+    top_missing_list = [{"skill": k, "count": v} for k, v in top_missing]
+    
     return {
         "average_resume_parsing_time_s": get_average_metric("parsing_time"),
         "ai_response_time_s": get_average_metric("llm_response_time"),
         "api_latency_s": get_average_metric("api_latency"),
         "analyses_completed": completed,
         "failed_analyses": failed,
-        "cache_hit_rate_pct": 0.0 # Will implement if semantic cache has counters
+        "cache_hit_rate_pct": 0.0,
+        
+        # New Job Matching Analytics
+        "job_matching_stats": {
+            "total_matches": total_matches,
+            "average_score": round(avg_match_score, 2),
+            "highest_score": round(highest_match_score, 2),
+            "lowest_score": round(lowest_match_score, 2)
+        },
+        "job_matching_analysis": {
+            "top_matched_skills": top_matched_list,
+            "top_missing_skills": top_missing_list
+        }
     }
 
 # --- Admin Endpoints (Users & Logs) ---

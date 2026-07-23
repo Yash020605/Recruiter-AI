@@ -88,3 +88,21 @@ class Comment(Base):
 
     # Relationships
     candidate = relationship("Candidate", back_populates="comments")
+
+class JobMatch(Base):
+    __tablename__ = "job_matches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False)
+    job_description = Column(Text, nullable=False)
+    match_score = Column(Float, nullable=False)
+    matched_skills = Column(Text, nullable=False)   # JSON array of strings
+    missing_skills = Column(Text, nullable=False)   # JSON array of strings
+    extra_skills = Column(Text, nullable=False)     # JSON array of strings
+    summary = Column(Text, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    candidate = relationship("Candidate")
+
