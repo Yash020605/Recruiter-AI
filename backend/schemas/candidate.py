@@ -32,6 +32,13 @@ class CandidateBase(BaseModel):
     hackerearth_assessment_url: Optional[str] = Field(default=None, description="HackerEarth Test URL")
     hackerearth_score: Optional[float] = Field(default=None, description="HackerEarth Technical Score")
     authbridge_bgv_status: Optional[str] = Field(default=None, description="AuthBridge BGV Status")
+    
+    # New Real Integrations
+    linkedin_profile_url: Optional[str] = Field(default=None, description="LinkedIn Profile URL")
+    google_meet_url: Optional[str] = Field(default=None, description="Google Meet URL")
+    github_score: Optional[float] = Field(default=None, description="GitHub Technical Score")
+    calendly_interview_time: Optional[str] = Field(default=None, description="Calendly Scheduled Time")
+    google_sheets_sync_status: Optional[str] = Field(default=None, description="Google Sheets Sync Status")
 
 class CandidateCreate(CandidateBase):
     pass
@@ -43,6 +50,8 @@ class CandidateResponse(CandidateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    composite_score: Optional[float] = Field(default=None, description="Combined AI + Tech Score")
+    rank: Optional[int] = Field(default=None, description="Rank position when sorted by composite score")
 
     model_config = ConfigDict(from_attributes=True)
 

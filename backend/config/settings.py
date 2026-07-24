@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     AUTHBRIDGE_TOKEN: str = Field(default="")
     NAUKRI_API_KEY: str = Field(default="")
 
+    # New Real Integrations
+    GOOGLE_CREDENTIALS_PATH: str = Field(default="credentials.json")
+    GOOGLE_SHEET_ID: str = Field(default="")
+    GOOGLE_CALENDAR_ID: str = Field(default="")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

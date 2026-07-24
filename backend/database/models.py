@@ -69,6 +69,13 @@ class Candidate(Base):
     hackerearth_score = Column(Float, nullable=True)
     authbridge_bgv_status = Column(String, nullable=True)
     
+    # New Real Integrations
+    linkedin_profile_url = Column(String, nullable=True)
+    google_meet_url = Column(String, nullable=True)
+    github_score = Column(Float, nullable=True)
+    calendly_interview_time = Column(String, nullable=True)
+    google_sheets_sync_status = Column(String, nullable=True)
+    
     # Audit fields
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

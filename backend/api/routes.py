@@ -162,15 +162,31 @@ def get_all_candidates(
     if notice_period:
         query = query.filter(Candidate.notice_period.ilike(f"%{notice_period}%"))
         
-    if sort_by == "match_score":
-        if sort_order == "asc":
-            query = query.order_by(Candidate.match_score.asc())
+    candidates_db = query.all()
+    
+    for c in candidates_db:
+        m_score = getattr(c, 'match_score', None) or 0.0
+        h_score = getattr(c, 'hackerearth_score', None)
+        if h_score is not None:
+            c.composite_score = (m_score * 0.6) + (h_score * 0.4)
         else:
-            query = query.order_by(Candidate.match_score.desc().nullslast())
-    else:
-        query = query.order_by(Candidate.id.desc())
+            c.composite_score = m_score
+            
+    # Calculate rank based on highest composite_score
+    candidates_db.sort(key=lambda x: getattr(x, 'composite_score', 0.0), reverse=True)
+    for idx, c in enumerate(candidates_db):
+        c.rank = idx + 1
         
-    return query.offset(skip).limit(limit).all()
+    if sort_by == "match_score":
+        candidates_db.sort(key=lambda x: getattr(x, 'match_score', 0.0) or 0.0, reverse=(sort_order != "asc"))
+    elif sort_by == "rank":
+        # default for rank is desc (highest score first). So asc means lowest score first.
+        if sort_order == "asc":
+            candidates_db.reverse()
+    else:
+        candidates_db.sort(key=lambda x: getattr(x, 'id', 0), reverse=True)
+        
+    return candidates_db[skip : skip + limit]
 
 @router.get("/candidates/{candidate_id}", response_model=CandidateResponse, tags=["candidates"], dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))])
 def get_candidate(candidate_id: int, db: Session = Depends(get_db)):

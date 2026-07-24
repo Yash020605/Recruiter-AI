@@ -316,9 +316,31 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const handleIntegration = async (id: number, integration: string) => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
+      let body = undefined;
+      if (integration === 'github/analyze') {
+        const username = window.prompt("Enter GitHub Username:");
+        if (!username) return;
+        body = JSON.stringify({ github_username: username });
+      } else if (integration === 'calendar/schedule') {
+        const datetime = window.prompt("Enter Interview Date and Time (YYYY-MM-DD HH:MM):", "2023-11-01 10:00");
+        if (!datetime) return;
+        // Convert to ISO string (assuming local time)
+        try {
+          const isoString = new Date(datetime).toISOString();
+          body = JSON.stringify({ start_time_iso: isoString });
+        } catch (e) {
+          alert("Invalid date format");
+          return;
+        }
+      }
+
       const response = await fetch(`${API_URL}/api/v1/integrations/${integration}/${id}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: body
       });
       if (response.ok) {
         alert(`${integration.split('/')[0].toUpperCase()} integration triggered successfully!`);
@@ -354,6 +376,31 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     } catch (err) {
       console.error(err);
       alert("Error importing candidate");
+    }
+  };
+
+  const handleLinkedinImport = async () => {
+    const url = window.prompt("Enter LinkedIn Profile URL:");
+    if (!url) return;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
+      const response = await fetch(`${API_URL}/api/v1/integrations/linkedin/import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ profile_url: url })
+      });
+      if (response.ok) {
+        alert("Candidate imported from LinkedIn successfully!");
+        fetchCandidates();
+      } else {
+        alert("Failed to import candidate from LinkedIn");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error importing candidate from LinkedIn");
     }
   };
 
@@ -676,12 +723,18 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                 {uploading ? 'Uploading...' : 'Upload Candidate'}
               </button>
 
-              <div className="mt-4 border-t border-gray-700 pt-4">
+              <div className="mt-4 border-t border-gray-700 pt-4 flex flex-col gap-2">
                 <button 
                   onClick={handleNaukriImport} 
                   className="w-full py-2 bg-[#1A73E8]/20 hover:bg-[#1A73E8]/40 text-[#1A73E8] rounded-lg text-sm font-medium transition-colors border border-[#1A73E8]/30"
                 >
                   📥 Import from Naukri
+                </button>
+                <button 
+                  onClick={handleLinkedinImport} 
+                  className="w-full py-2 bg-[#0A66C2]/20 hover:bg-[#0A66C2]/40 text-[#0A66C2] rounded-lg text-sm font-medium transition-colors border border-[#0A66C2]/30"
+                >
+                  📥 Import from LinkedIn
                 </button>
               </div>
             </div>
@@ -753,6 +806,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               <select className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="">Latest Uploaded</option>
                 <option value="match_score">Match Score (High to Low)</option>
+                <option value="rank">Overall Rank (AI + Tech Score)</option>
               </select>
             </div>
           </div>
@@ -762,11 +816,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               <div className="py-8 text-center text-gray-400 italic">No candidates uploaded yet.</div>
             ) : (
               candidates.map((c) => (
-                <div key={c.id} className="border border-white/10 rounded-lg overflow-hidden bg-black/20">
+                <div key={c.id} className={`border border-white/10 rounded-lg overflow-hidden bg-black/20 ${sortBy === 'rank' && c.rank === 1 ? 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : ''}`}>
                   {/* Candidate Header */}
                   <div className="p-4 flex flex-wrap items-center justify-between gap-4 hover:bg-white/5 transition-colors">
                     <div className="flex-grow">
                       <h3 className="font-semibold text-lg flex items-center gap-2">
+                        {sortBy === 'rank' && c.rank && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.rank === 1 ? 'bg-yellow-500 text-black' : c.rank === 2 ? 'bg-gray-300 text-black' : c.rank === 3 ? 'bg-amber-700 text-white' : 'bg-white/10 text-gray-300'}`}>
+                            #{c.rank}
+                          </span>
+                        )}
                         {c.name} (ID: {c.id})
                         {role !== 'hiring_manager' && (
                           <button onClick={() => setEditCandidate({...c})} className="text-gray-400 hover:text-white transition-colors" title="Edit Candidate Details">
@@ -800,7 +859,12 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                     <div className="flex items-center gap-4">
                       {c.match_score !== null && (
                         <div className="text-right">
-                          <div className="text-xl font-black text-blue-400">{c.match_score}%</div>
+                          <div className="text-xl font-black text-blue-400" title="Match Score">{c.match_score}%</div>
+                          {sortBy === 'rank' && c.composite_score !== undefined && (
+                            <div className="text-xs text-purple-400 font-semibold" title="Composite Score">
+                              CS: {c.composite_score.toFixed(1)}
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -1003,6 +1067,30 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                                   <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> {c.keka_employee_id}</div>
                                 ) : (
                                   <button onClick={() => handleIntegration(c.id, 'keka/onboard')} disabled={role === 'hiring_manager'} className="text-xs bg-pink-500/20 hover:bg-pink-500/40 text-pink-300 py-2 px-3 rounded w-full transition font-medium">Onboard to Keka</button>
+                                )}
+                              </div>
+                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
+                                <h5 className="text-sm font-semibold mb-3 text-cyan-400">Interview Schedule</h5>
+                                {c.google_meet_url && c.calendly_interview_time ? (
+                                  <a href={c.google_meet_url} target="_blank" rel="noreferrer" className="text-xs bg-cyan-500/10 text-cyan-400 py-2 px-3 rounded w-full flex items-center justify-center transition font-medium"><CheckCircle className="w-3 h-3 mr-1"/> Join Video</a>
+                                ) : (
+                                  <button onClick={() => handleIntegration(c.id, 'calendar/schedule')} disabled={role === 'hiring_manager'} className="text-xs bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 py-2 px-3 rounded w-full transition font-medium">Schedule Interview</button>
+                                )}
+                              </div>
+                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
+                                <h5 className="text-sm font-semibold mb-3 text-indigo-400">GitHub</h5>
+                                {c.github_score !== null ? (
+                                  <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> Tech Score: {c.github_score}</div>
+                                ) : (
+                                  <button onClick={() => handleIntegration(c.id, 'github/analyze')} disabled={role === 'hiring_manager'} className="text-xs bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 py-2 px-3 rounded w-full transition font-medium">Analyze Profile</button>
+                                )}
+                              </div>
+                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
+                                <h5 className="text-sm font-semibold mb-3 text-green-400">Google Sheets</h5>
+                                {c.google_sheets_sync_status ? (
+                                  <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> {c.google_sheets_sync_status}</div>
+                                ) : (
+                                  <button onClick={() => handleIntegration(c.id, 'google-sheets/export')} disabled={role === 'hiring_manager'} className="text-xs bg-green-500/20 hover:bg-green-500/40 text-green-300 py-2 px-3 rounded w-full transition font-medium">Export Data</button>
                                 )}
                               </div>
                             </div>
