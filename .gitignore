@@ -30,3 +30,6 @@ Thumbs.db
 
 # Agentic / AI Logs
 .gemini/
+
+# Secrets
+backend/credentials.json

@@ -1,3 +1,4 @@
+import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
 import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus } from 'lucide-react';
 import api from '../utils/api';
@@ -1493,6 +1494,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
         </div>
       )}
 
+      <InterviewSection />
       {/* Floating Chat Widget */}
       {role !== 'hiring_manager' && (
         <div className="fixed bottom-6 right-6 z-50">

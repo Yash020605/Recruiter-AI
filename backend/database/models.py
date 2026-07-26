@@ -113,3 +113,32 @@ class JobMatch(Base):
     # Relationships
     candidate = relationship("Candidate")
 
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    candidate_id = Column(
+        Integer,
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    interviewer = Column(String, nullable=False)
+
+    interview_date = Column(String, nullable=False)
+
+    interview_time = Column(String, nullable=False)
+
+    interview_mode = Column(String, nullable=False)
+
+    meeting_link = Column(Text, nullable=True)
+
+    status = Column(String, default="Scheduled")
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    candidate = relationship("Candidate")
