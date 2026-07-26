@@ -34,6 +34,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [jdText, setJdText] = useState("");
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
+  const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
   const [activeTab, setActiveTab] = useState<'candidates' | 'matching'>('candidates');
@@ -236,6 +237,27 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       alert("Analysis failed.");
       setAnalyzingId(null);
       setShowModal(false);
+    }
+  };
+
+  const handleRunWorkflow = async (candidateId: number) => {
+    if (!jdText.trim()) {
+      alert("Please enter a Job Description first.");
+      return;
+    }
+    setWorkflowRunningId(candidateId);
+    try {
+      await api.post('/recruitment/workflow', {
+        candidate_id: candidateId,
+        job_description: jdText
+      });
+      fetchCandidates();
+      alert("Workflow execution complete!");
+    } catch (error: any) {
+      console.error("Failed to run workflow", error);
+      alert(error.response?.data?.detail || "Workflow execution failed.");
+    } finally {
+      setWorkflowRunningId(null);
     }
   };
 
@@ -931,15 +953,27 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                       )}
                       
                       {role !== 'hiring_manager' && (
-                        <button
-                          onClick={() => handleAnalyze(c.id)}
-                          disabled={analyzingId === c.id || !jdText.trim()}
-                          className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
-                          title={!jdText.trim() ? "Add a JD to analyze" : "Run Analysis"}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          {analyzingId === c.id ? 'Running...' : 'Analyze'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAnalyze(c.id)}
+                            disabled={analyzingId === c.id || !jdText.trim()}
+                            className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
+                            title={!jdText.trim() ? "Add a JD to analyze" : "Run Analysis"}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            {analyzingId === c.id ? 'Running...' : 'Analyze'}
+                          </button>
+                          
+                          <button
+                            onClick={() => handleRunWorkflow(c.id)}
+                            disabled={workflowRunningId === c.id || !jdText.trim()}
+                            className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'}`}
+                            title={!jdText.trim() ? "Add a JD to run workflow" : "Run LangGraph Workflow"}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            {workflowRunningId === c.id ? 'Running...' : 'Run Workflow'}
+                          </button>
+                        </div>
                       )}
 
                       {role === 'hiring_manager' && (

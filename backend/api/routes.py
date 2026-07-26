@@ -518,6 +518,91 @@ Do not include any formatting other than the JSON block.
         summary=new_match.summary
     )
 
+# --- Recruitment Workflow Endpoint ---
+from backend.workflows.recruitment_workflow import recruitment_workflow
+
+class RecruitmentWorkflowRequest(BaseModel):
+    candidate_id: int
+    job_description: str
+
+class RecruitmentWorkflowResponse(BaseModel):
+    status: str
+    message: str
+    match_score: float
+    recommendation: str
+    skills: List[str]
+    matched_skills: List[str]
+    missing_skills: List[str]
+
+@router.post("/recruitment/workflow", response_model=RecruitmentWorkflowResponse, tags=["recruitment"], dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))])
+def execute_recruitment_workflow(
+    request: RecruitmentWorkflowRequest,
+    db: Session = Depends(get_db)
+):
+    if not request.job_description.strip():
+        raise HTTPException(status_code=400, detail="Job description cannot be empty.")
+        
+    candidate = candidate_repo.get(db, id=request.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found.")
+        
+    if not candidate.resume_path:
+        raise HTTPException(status_code=400, detail="Candidate has no resume attached.")
+        
+    initial_state = {
+        "resume_path": candidate.resume_path,
+        "jd_text": request.job_description,
+        "resume_data": None,
+        "extracted_skills": None,
+        "job_requirements": None,
+        "match_score": None,
+        "recommendation": None,
+        "final_report": None
+    }
+    
+    try:
+        final_state = recruitment_workflow.invoke(initial_state)
+        
+        # Save results to the database
+        resume_data = final_state.get("resume_data") or {}
+        report = final_state.get("final_report") or {}
+        extracted_skills = final_state.get("extracted_skills") or []
+        
+        candidate_repo.update(db, db_obj=candidate, obj_in={
+            "skills": json.dumps(extracted_skills),
+            "experience": json.dumps(resume_data.get("experience", [])),
+            "education": json.dumps(resume_data.get("education", [])),
+            "projects": json.dumps(resume_data.get("projects", [])),
+            "certifications": json.dumps(resume_data.get("certifications", [])),
+            "matched_skills": json.dumps(report.get("matched_skills", [])),
+            "missing_skills": json.dumps(report.get("missing_skills", [])),
+            "match_score": final_state.get("match_score", 0.0),
+            "score_breakdown": report.get("score_breakdown", "{}"),
+            "recommendation": final_state.get("recommendation", ""),
+            "current_company": resume_data.get("current_company"),
+            "current_ctc": resume_data.get("current_ctc"),
+            "expected_ctc": resume_data.get("expected_ctc"),
+            "notice_period": resume_data.get("notice_period"),
+            "preferred_location": resume_data.get("preferred_location")
+        })
+        
+        return RecruitmentWorkflowResponse(
+            status="success",
+            message="Workflow completed and database updated.",
+            match_score=final_state.get("match_score") or 0.0,
+            recommendation=final_state.get("recommendation") or "",
+            skills=extracted_skills,
+            matched_skills=report.get("matched_skills") or [],
+            missing_skills=report.get("missing_skills") or []
+        )
+        
+    except Exception as e:
+        logger.error(f"Workflow execution failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Workflow execution failed: {str(e)}"
+        )
+
 # --- Chat Endpoints ---
 class ChatRequest(BaseModel):
     candidate_id: Optional[int] = None

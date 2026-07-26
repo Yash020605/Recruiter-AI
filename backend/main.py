@@ -68,6 +68,9 @@ async def llm_timeout_exception_handler(request: Request, exc: LLMTimeoutError):
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(integrations_router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
 
+from backend.api.routes import execute_recruitment_workflow, RecruitmentWorkflowRequest, RecruitmentWorkflowResponse
+app.post("/api/recruitment/workflow", response_model=RecruitmentWorkflowResponse, tags=["recruitment"])(execute_recruitment_workflow)
+
 @app.get("/")
 def read_root():
     return {"message": "AI Recruiter Assistant API is running"}
