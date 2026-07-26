@@ -604,7 +604,8 @@ def execute_recruitment_workflow(
             "current_ctc": resume_data.get("current_ctc"),
             "expected_ctc": resume_data.get("expected_ctc"),
             "notice_period": resume_data.get("notice_period"),
-            "preferred_location": resume_data.get("preferred_location")
+            "preferred_location": resume_data.get("preferred_location"),
+            "status": report.get("automated_decision", CandidateStatus.SCREENING.value)
         })
         
         return RecruitmentWorkflowResponse(
@@ -957,3 +958,36 @@ def delete_interview(
     db.commit()
 
     return None
+
+from backend.agents.communication_agent import generate_communication_template
+
+class CommunicationRequest(BaseModel):
+    email_type: str = Field(..., description="Type of email: invite, reject, offer")
+
+@router.post(
+    "/candidates/{candidate_id}/communication",
+    response_model=dict,
+    tags=["candidates"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def generate_communication(
+    candidate_id: int,
+    request: CommunicationRequest,
+    db: Session = Depends(get_db)
+):
+    candidate = candidate_repo.get(db, id=candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    job_match = db.query(JobMatch).filter(JobMatch.candidate_id == candidate_id).order_by(JobMatch.id.desc()).first()
+    
+    candidate_data = {
+        "name": candidate.name,
+        "score": candidate.match_score or 0.0,
+        "matched_skills": json.loads(job_match.matched_skills) if job_match else [],
+        "missing_skills": json.loads(job_match.missing_skills) if job_match else []
+    }
+    
+    email_content = generate_communication_template(candidate_data, request.email_type)
+    
+    return {"email_content": email_content}

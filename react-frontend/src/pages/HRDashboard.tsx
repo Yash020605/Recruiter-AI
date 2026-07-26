@@ -73,6 +73,13 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [recFilter, setRecFilter] = useState("");
   const [sortBy, setSortBy] = useState("");
 
+  // Email Generation State
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailCandidateId, setEmailCandidateId] = useState<number | null>(null);
+  const [emailType, setEmailType] = useState("invite");
+  const [generatedEmail, setGeneratedEmail] = useState("");
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+
   const fetchAnalytics = async () => {
     try {
       const res = await api.get('/analytics');
@@ -238,6 +245,21 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       alert("Analysis failed.");
       setAnalyzingId(null);
       setShowModal(false);
+    }
+  };
+
+  const handleGenerateEmail = async () => {
+    if (!emailCandidateId) return;
+    setIsGeneratingEmail(true);
+    setGeneratedEmail("");
+    try {
+      const res = await api.post(`/candidates/${emailCandidateId}/communication`, { email_type: emailType });
+      setGeneratedEmail(res.data.email_content);
+    } catch (error) {
+      console.error("Failed to generate email", error);
+      alert("Failed to generate email.");
+    } finally {
+      setIsGeneratingEmail(false);
     }
   };
 
@@ -1038,6 +1060,18 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                             <Play className="w-4 h-4 mr-1" />
                             {workflowRunningId === c.id ? 'Running...' : 'Run Workflow'}
                           </button>
+
+                          <button
+                            onClick={() => {
+                              setEmailCandidateId(c.id);
+                              setShowEmailModal(true);
+                            }}
+                            className="flex items-center px-4 py-2 rounded text-sm font-medium transition-colors bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"
+                            title="Generate Communication Email"
+                          >
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Email
+                          </button>
                         </div>
                       )}
 
@@ -1551,6 +1585,68 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           )}
         </div>
       )}
+      {/* Email Generation Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-white/10 p-6 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold flex items-center">
+                <MessageSquare className="w-5 h-5 mr-2 text-teal-400" />
+                Generate Communication Template
+              </h2>
+              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Email Type</label>
+                <select 
+                  value={emailType} 
+                  onChange={(e) => setEmailType(e.target.value)}
+                  className="w-full bg-black border border-white/10 rounded p-2 text-white"
+                >
+                  <option value="invite">Interview Invitation</option>
+                  <option value="reject">Rejection</option>
+                  <option value="offer">Job Offer</option>
+                </select>
+              </div>
+
+              <button 
+                onClick={handleGenerateEmail}
+                disabled={isGeneratingEmail}
+                className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-800 text-white font-medium py-2 rounded transition-colors"
+              >
+                {isGeneratingEmail ? 'Generating...' : 'Generate with AI'}
+              </button>
+
+              {generatedEmail && (
+                <div className="mt-6">
+                  <label className="block text-sm text-gray-400 mb-2">Generated Template (Editable)</label>
+                  <textarea 
+                    value={generatedEmail}
+                    onChange={(e) => setGeneratedEmail(e.target.value)}
+                    className="w-full h-64 bg-black border border-white/10 rounded p-4 text-sm text-gray-300 font-mono focus:outline-none focus:border-teal-500"
+                  />
+                  <div className="flex justify-end mt-4">
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedEmail);
+                        alert("Copied to clipboard!");
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition-colors"
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -157,6 +157,27 @@ def ai_recommendation_node(state: RecruitmentState) -> dict:
         "recommendation": rec_res.get("recommendation", "")
     }
 
+def automated_screening_node(state: RecruitmentState) -> dict:
+    """Node 8: Automated Screening Decision."""
+    score = state.get("match_score", 0.0)
+    resume_data = state.get("resume_data") or {}
+    
+    # We can add more complex rules here based on CTC, notice period, location.
+    # For now, we do a basic thresholding.
+    if score >= 70.0:
+        status = "Shortlisted"
+    elif score >= 50.0:
+        status = "Screening"
+    else:
+        status = "Rejected"
+        
+    return {
+        "final_report": {
+            **state.get("final_report", {}),
+            "automated_decision": status
+        }
+    }
+
 # Build and Compile Graph
 def build_recruitment_workflow():
     workflow = StateGraph(RecruitmentState)
@@ -169,6 +190,7 @@ def build_recruitment_workflow():
     workflow.add_node("resume_job_matching", resume_job_matching_node)
     workflow.add_node("candidate_scoring", candidate_scoring_node)
     workflow.add_node("ai_recommendation", ai_recommendation_node)
+    workflow.add_node("automated_screening", automated_screening_node)
     
     # Set Entry Point
     workflow.set_entry_point("resume_parsing")
@@ -180,7 +202,8 @@ def build_recruitment_workflow():
     workflow.add_edge("job_requirement_extraction", "resume_job_matching")
     workflow.add_edge("resume_job_matching", "candidate_scoring")
     workflow.add_edge("candidate_scoring", "ai_recommendation")
-    workflow.add_edge("ai_recommendation", END)
+    workflow.add_edge("ai_recommendation", "automated_screening")
+    workflow.add_edge("automated_screening", END)
     
     return workflow.compile()
 
