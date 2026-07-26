@@ -12,12 +12,18 @@ async def export_to_google_sheets(candidate_data: dict) -> dict:
     if not settings.GOOGLE_SHEET_ID:
         raise ValueError("GOOGLE_SHEET_ID is not configured in environment variables.")
         
-    credentials_path = settings.GOOGLE_CREDENTIALS_PATH
-    if not os.path.exists(credentials_path):
-        raise FileNotFoundError(f"Google credentials file not found at {credentials_path}")
-
     # Load credentials
-    creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+    creds_json_str = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if creds_json_str:
+        import json
+        creds_info = json.loads(creds_json_str)
+        creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+    else:
+        credentials_path = settings.GOOGLE_CREDENTIALS_PATH
+        if not os.path.exists(credentials_path):
+            raise FileNotFoundError(f"Google credentials file not found at {credentials_path} and GOOGLE_CREDENTIALS_JSON not set.")
+        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+        
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
 

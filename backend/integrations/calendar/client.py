@@ -15,12 +15,17 @@ async def schedule_calendar_interview(email: str, name: str, start_time_iso: str
     if not settings.GOOGLE_CALENDAR_ID:
         raise ValueError("GOOGLE_CALENDAR_ID is not configured in environment variables.")
         
-    credentials_path = settings.GOOGLE_CREDENTIALS_PATH
-    if not os.path.exists(credentials_path):
-        raise FileNotFoundError(f"Google credentials file not found at {credentials_path}")
-
-    # Load credentials
-    creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+    creds_json_str = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if creds_json_str:
+        import json
+        creds_info = json.loads(creds_json_str)
+        creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+    else:
+        credentials_path = settings.GOOGLE_CREDENTIALS_PATH
+        if not os.path.exists(credentials_path):
+            raise FileNotFoundError(f"Google credentials file not found at {credentials_path} and GOOGLE_CREDENTIALS_JSON not set.")
+        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+        
     service = build('calendar', 'v3', credentials=creds)
     
     # Generate Jitsi link
