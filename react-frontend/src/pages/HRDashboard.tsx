@@ -34,8 +34,15 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [jdText, setJdText] = useState("");
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
+  const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
+  const [activeTab, setActiveTab] = useState<'candidates' | 'matching'>('candidates');
+  const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
+  const [matchingJd, setMatchingJd] = useState("");
+  const [matchingResult, setMatchingResult] = useState<any | null>(null);
+  const [isMatchingLoading, setIsMatchingLoading] = useState(false);
+  const [matchingError, setMatchingError] = useState<string | null>(null);
 
   // Admin Panel States
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -230,6 +237,53 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       alert("Analysis failed.");
       setAnalyzingId(null);
       setShowModal(false);
+    }
+  };
+
+  const handleRunWorkflow = async (candidateId: number) => {
+    if (!jdText.trim()) {
+      alert("Please enter a Job Description first.");
+      return;
+    }
+    setWorkflowRunningId(candidateId);
+    try {
+      await api.post('/recruitment/workflow', {
+        candidate_id: candidateId,
+        job_description: jdText
+      });
+      fetchCandidates();
+      alert("Workflow execution complete!");
+    } catch (error: any) {
+      console.error("Failed to run workflow", error);
+      alert(error.response?.data?.detail || "Workflow execution failed.");
+    } finally {
+      setWorkflowRunningId(null);
+    }
+  };
+
+  const handleJobMatch = async () => {
+    if (!selectedCandidateId) {
+      alert("Please select a candidate first.");
+      return;
+    }
+    if (!matchingJd.trim()) {
+      alert("Please enter a Job Description.");
+      return;
+    }
+    setIsMatchingLoading(true);
+    setMatchingError(null);
+    setMatchingResult(null);
+    try {
+      const res = await api.post('/job/match', {
+        candidate_id: selectedCandidateId,
+        job_description: matchingJd
+      });
+      setMatchingResult(res.data);
+    } catch (err: any) {
+      console.error("Job matching failed", err);
+      setMatchingError(err.response?.data?.detail || "An error occurred during job matching.");
+    } finally {
+      setIsMatchingLoading(false);
     }
   };
 
@@ -586,31 +640,108 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             
             <div className="flex-1 overflow-y-auto">
               {adminTab === 'analytics' && analyticsData && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Avg Parse Time</p>
-                    <p className="text-xl font-bold">{analyticsData.average_resume_parsing_time_s.toFixed(2)}s</p>
+                <div className="space-y-6">
+                  {/* General System Metrics */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">System & Parse Performance</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Avg Parse Time</p>
+                        <p className="text-xl font-bold">{analyticsData.average_resume_parsing_time_s.toFixed(2)}s</p>
+                      </div>
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Avg AI Response</p>
+                        <p className="text-xl font-bold">{analyticsData.ai_response_time_s.toFixed(2)}s</p>
+                      </div>
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Avg API Latency</p>
+                        <p className="text-xl font-bold">{analyticsData.api_latency_s.toFixed(2)}s</p>
+                      </div>
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Cache Hit Rate</p>
+                        <p className="text-xl font-bold">{analyticsData.cache_hit_rate_pct}%</p>
+                      </div>
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Analyses Completed</p>
+                        <p className="text-xl font-bold text-green-400">{analyticsData.analyses_completed}</p>
+                      </div>
+                      <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                        <p className="text-gray-400 text-xs uppercase mb-1">Failed Analyses</p>
+                        <p className="text-xl font-bold text-red-400">{analyticsData.failed_analyses}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Avg AI Response</p>
-                    <p className="text-xl font-bold">{analyticsData.ai_response_time_s.toFixed(2)}s</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Avg API Latency</p>
-                    <p className="text-xl font-bold">{analyticsData.api_latency_s.toFixed(2)}s</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Cache Hit Rate</p>
-                    <p className="text-xl font-bold">{analyticsData.cache_hit_rate_pct}%</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Analyses Completed</p>
-                    <p className="text-xl font-bold text-green-400">{analyticsData.analyses_completed}</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-lg border border-white/5">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Failed Analyses</p>
-                    <p className="text-xl font-bold text-red-400">{analyticsData.failed_analyses}</p>
-                  </div>
+
+                  {/* Job Matching Statistics */}
+                  {analyticsData.job_matching_stats && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Job Matching Statistics</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-400 text-xs uppercase mb-1">Total Matches Run</p>
+                          <p className="text-xl font-bold text-blue-400">{analyticsData.job_matching_stats.total_matches}</p>
+                        </div>
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-400 text-xs uppercase mb-1">Avg Match Score</p>
+                          <p className="text-xl font-bold text-purple-400">{analyticsData.job_matching_stats.average_score}%</p>
+                        </div>
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-400 text-xs uppercase mb-1">Highest Match Score</p>
+                          <p className="text-xl font-bold text-green-400">{analyticsData.job_matching_stats.highest_score}%</p>
+                        </div>
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-400 text-xs uppercase mb-1">Lowest Match Score</p>
+                          <p className="text-xl font-bold text-yellow-500">{analyticsData.job_matching_stats.lowest_score}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Job Matching Skill Analysis */}
+                  {analyticsData.job_matching_analysis && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Matching Skill Gap Analysis</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Top Matched Skills */}
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-300 text-xs font-semibold uppercase tracking-wider mb-3 text-green-400">Top Matched Skills (Requested & Found)</p>
+                          {analyticsData.job_matching_analysis.top_matched_skills && analyticsData.job_matching_analysis.top_matched_skills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {analyticsData.job_matching_analysis.top_matched_skills.map((item: any, idx: number) => (
+                                <span key={idx} className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-green-300 px-2.5 py-1 rounded-full text-xs font-medium">
+                                  {item.skill}
+                                  <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                    {item.count}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-xs italic">No matching skills tracked yet.</p>
+                          )}
+                        </div>
+
+                        {/* Top Missing Skills */}
+                        <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                          <p className="text-gray-300 text-xs font-semibold uppercase tracking-wider mb-3 text-red-400">Top Missing Skills (Requested but Lacking)</p>
+                          {analyticsData.job_matching_analysis.top_missing_skills && analyticsData.job_matching_analysis.top_missing_skills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {analyticsData.job_matching_analysis.top_missing_skills.map((item: any, idx: number) => (
+                                <span key={idx} className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-300 px-2.5 py-1 rounded-full text-xs font-medium">
+                                  {item.skill}
+                                  <span className="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                    {item.count}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-xs italic">No missing skills tracked yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -691,7 +822,24 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-white/10 mb-8 space-x-6">
+        <button 
+          onClick={() => setActiveTab('candidates')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'candidates' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          Candidates
+        </button>
+        <button 
+          onClick={() => setActiveTab('matching')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'matching' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          Job Matching
+        </button>
+      </div>
+
+      {activeTab === 'candidates' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Uploads & JD */}
         <div className="lg:col-span-1 flex flex-col space-y-6">
           
@@ -869,15 +1017,27 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                       )}
                       
                       {role !== 'hiring_manager' && (
-                        <button
-                          onClick={() => handleAnalyze(c.id)}
-                          disabled={analyzingId === c.id || !jdText.trim()}
-                          className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
-                          title={!jdText.trim() ? "Add a JD to analyze" : "Run Analysis"}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          {analyzingId === c.id ? 'Running...' : 'Analyze'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAnalyze(c.id)}
+                            disabled={analyzingId === c.id || !jdText.trim()}
+                            className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
+                            title={!jdText.trim() ? "Add a JD to analyze" : "Run Analysis"}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            {analyzingId === c.id ? 'Running...' : 'Analyze'}
+                          </button>
+                          
+                          <button
+                            onClick={() => handleRunWorkflow(c.id)}
+                            disabled={workflowRunningId === c.id || !jdText.trim()}
+                            className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'}`}
+                            title={!jdText.trim() ? "Add a JD to run workflow" : "Run LangGraph Workflow"}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            {workflowRunningId === c.id ? 'Running...' : 'Run Workflow'}
+                          </button>
+                        </div>
                       )}
 
                       {role === 'hiring_manager' && (
@@ -1174,7 +1334,165 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           </div>
         </div>
       </div>
-      
+    ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
+          {/* Left Column: Input Selection & JD */}
+          <div className="lg:col-span-1 flex flex-col space-y-6">
+            <div className="glass-card p-6 flex flex-col">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <FileText className="mr-2 text-blue-500" /> Match Candidate
+              </h2>
+              <p className="text-gray-400 mb-4 text-sm">Select a candidate and input the target Job Description.</p>
+              
+              <div className="mb-4">
+                <label className="block text-xs uppercase font-bold text-gray-400 tracking-wider mb-2">Select Candidate</label>
+                <select 
+                  value={selectedCandidateId || ""} 
+                  onChange={(e) => {
+                    setSelectedCandidateId(e.target.value ? Number(e.target.value) : null);
+                    setMatchingResult(null);
+                    setMatchingError(null);
+                  }}
+                  className="w-full bg-gray-800 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                >
+                  <option value="">-- Select Candidate --</option>
+                  {candidates.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} (ID: {c.id})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs uppercase font-bold text-gray-400 tracking-wider mb-2">Job Description</label>
+                <textarea
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors resize-none min-h-[300px]"
+                  placeholder="Paste the target Job Description here..."
+                  value={matchingJd}
+                  onChange={(e) => setMatchingJd(e.target.value)}
+                ></textarea>
+              </div>
+
+              <button 
+                onClick={handleJobMatch} 
+                disabled={isMatchingLoading || !selectedCandidateId || !matchingJd.trim()}
+                className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                  isMatchingLoading || !selectedCandidateId || !matchingJd.trim()
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-[0.98]'
+                }`}
+              >
+                <Play className="w-4 h-4" />
+                {isMatchingLoading ? 'Analyzing Match...' : 'Analyze Match'}
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Output Results */}
+          <div className="glass-card p-6 lg:col-span-2 min-h-[500px] flex flex-col">
+            <h2 className="text-xl font-semibold mb-6 flex items-center">
+              <CheckCircle className="mr-2 text-green-500" /> Match Analysis Result
+            </h2>
+
+            {matchingError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg text-sm mb-6 flex items-center">
+                <span className="font-bold mr-2">Error:</span> {matchingError}
+              </div>
+            )}
+
+            {isMatchingLoading ? (
+              <div className="flex-grow flex flex-col items-center justify-center space-y-4 py-12">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-400 text-sm animate-pulse">Running multi-agent requirements extraction and comparison...</p>
+              </div>
+            ) : matchingResult ? (
+              <div className="space-y-8 animate-in fade-in duration-300">
+                {/* Score & Recommendation Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Overall Match Score</span>
+                    <div className="text-5xl font-black text-blue-400">{matchingResult.match_score}%</div>
+                    <div className="mt-4 h-2.5 bg-gray-800 rounded-full overflow-hidden w-full mx-auto max-w-[120px]">
+                      <div 
+                        className="h-full bg-blue-400 rounded-full" 
+                        style={{ width: `${matchingResult.match_score}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">AI Summary / Fit Assessment</span>
+                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{matchingResult.summary}</p>
+                  </div>
+                </div>
+
+                {/* Skills Analysis */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
+                      Matched Skills ({matchingResult.matched_skills.length})
+                    </h3>
+                    {matchingResult.matched_skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {matchingResult.matched_skills.map((s: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-xs font-semibold">
+                            ✓ {s}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No matching skills identified.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 mr-2"></span>
+                      Missing Skills ({matchingResult.missing_skills.length})
+                    </h3>
+                    {matchingResult.missing_skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {matchingResult.missing_skills.map((s: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-semibold">
+                            ✗ {s}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No missing skills identified.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></span>
+                      Additional / Extra Skills ({matchingResult.extra_skills.length})
+                    </h3>
+                    {matchingResult.extra_skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {matchingResult.extra_skills.map((s: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-full text-xs font-semibold">
+                            + {s}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No additional skills identified.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-grow flex flex-col items-center justify-center text-center p-12 text-gray-400">
+                <FileText className="w-16 h-16 text-gray-600 mb-4 stroke-1" />
+                <h3 className="text-lg font-medium mb-1">No Match Analysis Performed</h3>
+                <p className="text-sm text-gray-500 max-w-sm">Select a candidate and paste a job description on the left, then click "Analyze Match" to generate insights.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Floating Chat Widget */}
       {role !== 'hiring_manager' && (
         <div className="fixed bottom-6 right-6 z-50">
