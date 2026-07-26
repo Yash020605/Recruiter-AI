@@ -10,6 +10,7 @@ Recruiter AI is a cutting-edge, stateful multi-agent recruitment platform design
 ## 🚀 Features
 
 - **Multi-Agent Evaluation:** Utilizes stateful LangGraph workflows to score candidate profiles autonomously. Agents extract skills, compare them to the Job Description, and assign a match score.
+- **Automated Interview Scheduling:** Seamlessly schedule technical and HR interviews with candidates. Includes automated calendar invitations with Jitsi Meet links.
 - **Candidate Ranking System:** Dynamically computes a composite score based on AI match evaluation and technical assessments (like HackerEarth) to assign objective, color-coded rank badges, surfacing the top candidates instantly.
 - **Background Processing:** AI evaluations are pushed to background tasks, enabling non-blocking, asynchronous analysis of hundreds of candidates at once.
 - **Interactive HR Dashboard:** A highly dynamic React dashboard with real-time websocket integration, enabling recruiters to view status updates live.
