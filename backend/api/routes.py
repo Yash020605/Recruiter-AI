@@ -18,9 +18,14 @@ from backend.config.settings import settings
 from backend.database.postgres import get_db
 from backend.tools.candidate_database import user_repo, candidate_repo, comment_repo
 from backend.schemas.auth import Token
-from backend.database.models import UserRole, Candidate, Comment
+from backend.database.models import UserRole, Candidate, Comment, Interview 
 from backend.schemas.candidate import CandidateResponse, CommentCreate, CommentResponse
 from backend.schemas.admin import UserCreate, UserUpdate, UserResponse
+from backend.schemas.interview import (
+    InterviewCreate,
+    InterviewResponse,
+    InterviewUpdate
+)
 from backend.utils.logger import get_logger, LOG_FILE
 from backend.utils.logger import get_logger
 from backend.utils.exceptions import InvalidDocumentError
@@ -475,3 +480,133 @@ async def onboard_keka(candidate_id: int, db: Session = Depends(get_db)):
 
     updated = candidate_repo.update(db, db_obj=candidate, obj_in={"keka_employee_id": keka_id})
     return {"status": "success", "keka_employee_id": keka_id}
+
+@router.post(
+    "/interviews/schedule",
+    response_model=InterviewResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["interviews"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def schedule_interview(
+    request: InterviewCreate,
+    db: Session = Depends(get_db)
+):
+    candidate = db.query(Candidate).filter(
+        Candidate.id == request.candidate_id
+    ).first()
+
+    if not candidate:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate not found"
+        )
+
+    interview = Interview(
+        candidate_id=request.candidate_id,
+        interviewer=request.interviewer,
+        interview_date=request.interview_date,
+        interview_time=request.interview_time,
+        interview_mode=request.interview_mode,
+        meeting_link=request.meeting_link,
+        status="Scheduled"
+    )
+
+    db.add(interview)
+
+    candidate.status = "Interview Scheduled"
+
+    db.commit()
+    db.refresh(interview)
+
+    return interview
+
+@router.get(
+    "/interviews",
+    response_model=List[InterviewResponse],
+    tags=["interviews"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))]
+)
+def get_all_interviews(
+    db: Session = Depends(get_db)
+):
+    interviews = db.query(Interview).order_by(Interview.id.desc()).all()
+    return interviews    
+
+@router.get(
+    "/interviews/{interview_id}",
+    response_model=InterviewResponse,
+    tags=["interviews"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))]
+)
+def get_interview(
+    interview_id: int,
+    db: Session = Depends(get_db)
+):
+    interview = db.query(Interview).filter(
+        Interview.id == interview_id
+    ).first()
+
+    if not interview:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
+        )
+
+    return interview
+
+@router.put(
+    "/interviews/{interview_id}",
+    response_model=InterviewResponse,
+    tags=["interviews"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def update_interview(
+    interview_id: int,
+    request: InterviewUpdate,
+    db: Session = Depends(get_db)
+):
+    interview = db.query(Interview).filter(
+        Interview.id == interview_id
+    ).first()
+
+    if not interview:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
+        )
+
+    update_data = request.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(interview, key, value)
+
+    db.commit()
+    db.refresh(interview)
+
+    return interview
+
+@router.delete(
+    "/interviews/{interview_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["interviews"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def delete_interview(
+    interview_id: int,
+    db: Session = Depends(get_db)
+):
+    interview = db.query(Interview).filter(
+        Interview.id == interview_id
+    ).first()
+
+    if not interview:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
+        )
+
+    db.delete(interview)
+    db.commit()
+
+    return None

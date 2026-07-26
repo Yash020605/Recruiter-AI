@@ -28,7 +28,7 @@ async def trigger_naukri_import(request: NaukriImportRequest, db: Session = Depe
             "email": response["data"]["email"],
             "phone": response["data"]["phone"],
             "current_company": response["data"]["current_company"],
-            "skills": f'["{response["data"]["skills"].replace(", ", "\\\", \\\"")}"]',
+            "skills": response["data"]["skills"].split(", "),
             "resume_path": "Naukri Profile"
         })
         return {"status": "success", "candidate_id": new_candidate.id, "message": "Candidate imported successfully"}
