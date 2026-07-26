@@ -108,8 +108,8 @@ async def upload_resume(
         raise InvalidDocumentError("Empty filename provided.")
     
     ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".pdf", ".txt"]:
-        raise InvalidDocumentError("Only PDF and TXT files are supported.")
+    if ext not in [".pdf", ".txt",".docx"]:
+        raise InvalidDocumentError("Only PDF, DOCX and TXT files are supported.")
         
     file_id = str(uuid.uuid4())
     safe_filename = f"{file_id}{ext}"

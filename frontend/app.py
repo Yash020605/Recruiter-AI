@@ -57,7 +57,7 @@ def upload_view():
     st.title("Upload & Analyze")
     
     st.subheader("1. Upload Resumes (Batch)")
-    uploaded_files = st.file_uploader("Upload PDF or TXT", type=["pdf", "txt"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload PDF or TXT or DOCX", type=["pdf", "txt","docx"], accept_multiple_files=True)
     
     if uploaded_files:
         if st.button("Upload to System"):

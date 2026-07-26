@@ -8,8 +8,8 @@ API_URL = st.session_state.get("API_URL", "http://localhost:8000/api/v1")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("1. Upload Resume (PDF)")
-    resume_file = st.file_uploader("Choose a PDF Resume", type=["pdf"])
+    st.subheader("1. Upload Resume (PDF/DOCX)")
+    resume_file = st.file_uploader("Choose a PDF Resume", type=["pdf","docx"])
 
 with col2:
     st.subheader("2. Upload Job Description")
@@ -23,7 +23,7 @@ if st.button("Analyze Candidate"):
             # Upload Resume
             resume_res = requests.post(
                 f"{API_URL}/upload", 
-                files={"file": (resume_file.name, resume_file, "application/pdf")}
+                files={"file": (resume_file.name, resume_file)}
             )
             
             # Upload JD
