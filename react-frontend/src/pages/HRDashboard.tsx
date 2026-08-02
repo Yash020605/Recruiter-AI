@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus } from 'lucide-react';
+import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail } from 'lucide-react';
 import api from '../utils/api';
 
 interface Props {
