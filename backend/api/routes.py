@@ -33,6 +33,8 @@ from backend.agents.chatbot_agent import query_global_candidates, query_candidat
 from backend.workflows.recruiter_graph import recruiter_graph
 from backend.api.deps import RoleChecker
 from backend.utils.metrics import get_average_metric, get_counter
+from backend.ml.candidate_matcher import calculate_match_score
+from backend.utils.extract_text import extract_text_from_file
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -259,9 +261,10 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     status: str
     message: str
-
+    
 def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
     logger.info(f"Starting LangGraph pipeline for candidate {candidate_id}")
+
     initial_state = {
         "candidate_id": candidate_id,
         "resume_path": resume_path,
@@ -277,46 +280,66 @@ def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
         "messages": [],
         "chat_response": None
     }
+
     try:
+        # ---------- ML Candidate Matching ----------
+        resume_text = extract_text_from_file(resume_path)
+        ml_match_score = calculate_match_score(jd, resume_text)
+        logger.info(f"ML Candidate Match Score: {ml_match_score}%")
+        # -------------------------------------------
+
         final_state = recruiter_graph.invoke(initial_state)
+
         logger.info(f"Pipeline completed with score: {final_state.get('match_score')}")
-        
+
         # Save the evaluation results to the database
         try:
             db = next(get_db())
             candidate = candidate_repo.get(db, id=candidate_id)
+
             if candidate:
-                candidate_repo.update(db, db_obj=candidate, obj_in={
-                    "skills": json.dumps(final_state.get("skills", [])),
-                    "experience": json.dumps(final_state.get("experience", [])),
-                    "education": json.dumps(final_state.get("education", [])),
-                    "projects": json.dumps(final_state.get("projects", [])),
-                    "certifications": json.dumps(final_state.get("certifications", [])),
-                    "matched_skills": json.dumps(final_state.get("matched_skills", [])),
-                    "missing_skills": json.dumps(final_state.get("missing_skills", [])),
-                    "match_score": final_state.get("match_score", 0.0),
-                    "recommendation": final_state.get("recommendation", ""),
-                    "current_company": final_state.get("current_company"),
-                    "current_ctc": final_state.get("current_ctc"),
-                    "expected_ctc": final_state.get("expected_ctc"),
-                    "notice_period": final_state.get("notice_period"),
-                    "preferred_location": final_state.get("preferred_location")
-                })
+                candidate_repo.update(
+                    db,
+                    db_obj=candidate,
+                    obj_in={
+                        "skills": json.dumps(final_state.get("skills", [])),
+                        "experience": json.dumps(final_state.get("experience", [])),
+                        "education": json.dumps(final_state.get("education", [])),
+                        "projects": json.dumps(final_state.get("projects", [])),
+                        "certifications": json.dumps(final_state.get("certifications", [])),
+                        "matched_skills": json.dumps(final_state.get("matched_skills", [])),
+                        "missing_skills": json.dumps(final_state.get("missing_skills", [])),
+                        "match_score": final_state.get("match_score", 0.0),
+                        "recommendation": final_state.get("recommendation", ""),
+                        "current_company": final_state.get("current_company"),
+                        "current_ctc": final_state.get("current_ctc"),
+                        "expected_ctc": final_state.get("expected_ctc"),
+                        "notice_period": final_state.get("notice_period"),
+                        "preferred_location": final_state.get("preferred_location")
+                    }
+                )
+
         except Exception as db_err:
             logger.error(f"Failed to save final state to DB: {db_err}")
-            
+
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Pipeline execution failed: {error_msg}")
-        # Save the error state to the database so the frontend stops polling
+
         try:
             db = next(get_db())
             candidate = candidate_repo.get(db, id=candidate_id)
+
             if candidate:
-                candidate_repo.update(db, db_obj=candidate, obj_in={
-                    "match_score": 0,
-                    "recommendation": f"AI Analysis Failed: {error_msg}"
-                })
+                candidate_repo.update(
+                    db,
+                    db_obj=candidate,
+                    obj_in={
+                        "match_score": 0,
+                        "recommendation": f"AI Analysis Failed: {error_msg}"
+                    }
+                )
+
         except Exception as db_err:
             logger.error(f"Failed to save error state to DB: {db_err}")
 

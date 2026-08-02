@@ -24,6 +24,8 @@
 #         return text
 #     else:
 #         raise ValueError(f"Unsupported file format: {ext}")
+
+
 import os
 import PyPDF2
 from docx import Document
