@@ -99,6 +99,13 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   // Comments State
   const [candidateComments, setCandidateComments] = useState<Record<number, any[]>>({});
   const [newCommentText, setNewCommentText] = useState("");
+  
+  // Email Modal State
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailCandidateId, setEmailCandidateId] = useState<number | null>(null);
+  const [emailType, setEmailType] = useState("invite");
+  const [emailTemplate, setEmailTemplate] = useState("");
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
   // Chat Widget State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -302,6 +309,27 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       alert(error.response?.data?.detail || "Workflow execution failed.");
     } finally {
       setWorkflowRunningId(null);
+    }
+  };
+
+  const handleOpenEmailModal = (candidateId: number) => {
+    setEmailCandidateId(candidateId);
+    setEmailType("invite");
+    setEmailTemplate("");
+    setShowEmailModal(true);
+  };
+
+  const handleGenerateEmail = async () => {
+    if (!emailCandidateId) return;
+    setIsGeneratingEmail(true);
+    try {
+      const res = await api.post(`/candidates/${emailCandidateId}/communication`, { email_type: emailType });
+      setEmailTemplate(res.data.template);
+    } catch (error: any) {
+      console.error("Failed to generate email", error);
+      alert("Failed to generate email.");
+    } finally {
+      setIsGeneratingEmail(false);
     }
   };
 
@@ -1026,10 +1054,19 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                             onClick={() => handleRunWorkflow(c.id)}
                             disabled={workflowRunningId === c.id || !jdText.trim()}
                             className={`flex items-center px-4 py-2 rounded text-sm font-medium transition-colors ${!jdText.trim() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'}`}
-                            title={!jdText.trim() ? "Add a JD to run workflow" : "Run LangGraph Workflow"}
+                            title={!jdText.trim() ? "Add a JD to run screening" : "Run E2E Screening Workflow"}
                           >
                             <Play className="w-4 h-4 mr-1" />
-                            {workflowRunningId === c.id ? 'Running...' : 'Run Workflow'}
+                            {workflowRunningId === c.id ? 'Running...' : 'Run E2E Screening'}
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenEmailModal(c.id)}
+                            className="flex items-center px-4 py-2 rounded text-sm font-medium transition-colors bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"
+                            title="Generate Communication Template"
+                          >
+                            <Mail className="w-4 h-4 mr-1" />
+                            Email
                           </button>
                         </div>
                       )}
@@ -1762,8 +1799,72 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           )}
         </div>
       )}
+
+      {/* Email Template Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-white/10 p-6 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative">
+            <button 
+              onClick={() => setShowEmailModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Mail className="w-6 h-6 text-teal-400" />
+              Generate Communication Template
+            </h2>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Email Type</label>
+                <select 
+                  value={emailType}
+                  onChange={(e) => setEmailType(e.target.value)}
+                  className="w-full bg-gray-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-teal-500 transition-colors"
+                >
+                  <option value="invite">Interview Invitation</option>
+                  <option value="reject">Rejection</option>
+                  <option value="offer">Job Offer</option>
+                  <option value="update">Status Update</option>
+                </select>
+              </div>
+
+              <button 
+                onClick={handleGenerateEmail}
+                disabled={isGeneratingEmail}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-teal-500 hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingEmail ? 'Drafting...' : 'Draft Email'}
+              </button>
+            </div>
+
+            {emailTemplate && (
+              <div className="mt-6 border-t border-white/10 pt-6">
+                <label className="block text-sm font-medium text-gray-400 mb-2 flex justify-between items-center">
+                  <span>Generated Email</span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(emailTemplate);
+                      alert('Copied to clipboard!');
+                    }}
+                    className="text-teal-400 hover:text-teal-300 text-xs flex items-center gap-1"
+                  >
+                    Copy
+                  </button>
+                </label>
+                <textarea
+                  value={emailTemplate}
+                  onChange={(e) => setEmailTemplate(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:border-teal-500 transition-colors min-h-[300px] whitespace-pre-wrap resize-y custom-scrollbar"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default HRDashboard;

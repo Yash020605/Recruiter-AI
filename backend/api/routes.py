@@ -385,6 +385,47 @@ def update_specific_journey_event(
         
     return event
 
+# --- Communication Endpoint ---
+class CommunicationRequest(BaseModel):
+    email_type: str  # "invite", "reject", "offer", etc.
+
+class CommunicationResponse(BaseModel):
+    template: str
+
+@router.post("/candidates/{candidate_id}/communication", response_model=CommunicationResponse, tags=["communication"])
+def generate_email_template(
+    candidate_id: int,
+    request: CommunicationRequest,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+    role: UserRole = Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))
+):
+    candidate = candidate_repo.get(db, id=candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    from backend.agents.communication_agent import generate_communication_template
+    
+    matched_skills = []
+    missing_skills = []
+    try:
+        if candidate.matched_skills:
+            matched_skills = json.loads(candidate.matched_skills)
+        if candidate.missing_skills:
+            missing_skills = json.loads(candidate.missing_skills)
+    except Exception:
+        pass
+        
+    candidate_data = {
+        "name": candidate.name or "Candidate",
+        "score": candidate.match_score or 0.0,
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills
+    }
+    
+    template = generate_communication_template(candidate_data, request.email_type)
+    return CommunicationResponse(template=template)
+
 # --- Analyze Endpoints ---
 class AnalyzeRequest(BaseModel):
     candidate_id: int
@@ -451,7 +492,7 @@ def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
                     "expected_ctc": final_state.get("expected_ctc"),
                     "notice_period": final_state.get("notice_period"),
                     "preferred_location": final_state.get("preferred_location"),
-                    "status": "AI Screening",
+                    "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
                     "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
                     "total_experience_years": total_exp,
                     "highest_education_level": highest_edu
@@ -469,7 +510,7 @@ def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
                     candidate_id=candidate.id,
                     stage="AI Screening",
                     status="Completed",
-                    remarks=f"AI Screening and Match Scoring complete (Score: {final_state.get('match_score')}%).",
+                    remarks=f"AI Screening and Match Scoring complete (Score: {final_state.get('match_score')}%). Status updated.",
                     updated_by="AI Agent"
                 ))
                 db.commit()
@@ -794,7 +835,7 @@ def execute_recruitment_workflow(
             "expected_ctc": resume_data.get("expected_ctc"),
             "notice_period": resume_data.get("notice_period"),
             "preferred_location": resume_data.get("preferred_location"),
-            "status": "AI Screening",
+            "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
             "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
             "total_experience_years": total_exp,
             "highest_education_level": highest_edu
