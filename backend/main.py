@@ -11,33 +11,11 @@ from backend.api.routes import router as api_router
 from backend.api.integrations import router as integrations_router
 import time
 
-logger = get_logger(__name__)
-logger.info("Initializing database schema...")
-Base.metadata.create_all(bind=engine)
+from backend.database.migration import run_migrations
 
-from sqlalchemy import text
-try:
-    with engine.begin() as conn:
-        if engine.dialect.name == "postgresql":
-            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS linkedin_profile_url VARCHAR"))
-            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS google_meet_url VARCHAR"))
-            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS github_score FLOAT"))
-            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS calendly_interview_time VARCHAR"))
-            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS google_sheets_sync_status VARCHAR"))
-            logger.info("Applied postgres migrations for new columns.")
-        elif engine.dialect.name == "sqlite":
-            # For SQLite, we can try adding columns and ignore the error if they exist
-            try:
-                conn.execute(text("ALTER TABLE candidates ADD COLUMN linkedin_profile_url VARCHAR"))
-                conn.execute(text("ALTER TABLE candidates ADD COLUMN google_meet_url VARCHAR"))
-                conn.execute(text("ALTER TABLE candidates ADD COLUMN github_score FLOAT"))
-                conn.execute(text("ALTER TABLE candidates ADD COLUMN calendly_interview_time VARCHAR"))
-                conn.execute(text("ALTER TABLE candidates ADD COLUMN google_sheets_sync_status VARCHAR"))
-                logger.info("Applied sqlite migrations for new columns.")
-            except Exception:
-                pass
-except Exception as e:
-    logger.error(f"Migration error: {e}")
+logger = get_logger(__name__)
+logger.info("Initializing database schema and running migrations...")
+run_migrations()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

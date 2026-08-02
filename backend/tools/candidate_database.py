@@ -47,11 +47,19 @@ class UserRepository(BaseRepository[User]):
     def get_by_username(self, db: Session, username: str) -> Optional[User]:
         return db.query(User).filter(User.username == username).first()
 
+from backend.database.models import CandidateJourney
+
 class CommentRepository(BaseRepository[Comment]):
     def __init__(self):
         super().__init__(Comment)
+
+class CandidateJourneyRepository(BaseRepository[CandidateJourney]):
+    def __init__(self):
+        super().__init__(CandidateJourney)
 
 # Instantiate repositories
 candidate_repo = CandidateRepository()
 user_repo = UserRepository()
 comment_repo = CommentRepository()
+journey_repo = CandidateJourneyRepository()
+

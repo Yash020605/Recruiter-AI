@@ -3,14 +3,16 @@ from fastapi.testclient import TestClient
 from fastapi import status
 from unittest.mock import patch
 from backend.database.models import UserRole
-from backend.api.deps import get_current_user_role
+from backend.api.deps import get_current_user_role, get_current_user
 from backend.main import app
 
 @pytest.fixture(autouse=True)
 def override_auth():
     app.dependency_overrides[get_current_user_role] = lambda: UserRole.RECRUITER
+    app.dependency_overrides[get_current_user] = lambda: "admin"
     yield
     app.dependency_overrides.pop(get_current_user_role, None)
+    app.dependency_overrides.pop(get_current_user, None)
 
 def test_recruitment_workflow_empty_job_description(client: TestClient):
     for endpoint in ["/api/v1/recruitment/workflow", "/api/recruitment/workflow"]:

@@ -33,12 +33,10 @@ class CandidateBase(BaseModel):
     hackerearth_score: Optional[float] = Field(default=None, description="HackerEarth Technical Score")
     authbridge_bgv_status: Optional[str] = Field(default=None, description="AuthBridge BGV Status")
     
-    # New Real Integrations
-    linkedin_profile_url: Optional[str] = Field(default=None, description="LinkedIn Profile URL")
-    google_meet_url: Optional[str] = Field(default=None, description="Google Meet URL")
-    github_score: Optional[float] = Field(default=None, description="GitHub Technical Score")
-    calendly_interview_time: Optional[str] = Field(default=None, description="Calendly Scheduled Time")
-    google_sheets_sync_status: Optional[str] = Field(default=None, description="Google Sheets Sync Status")
+    # Diversity & Inclusion fields
+    gender: Optional[str] = Field(default=None, description="Gender")
+    total_experience_years: Optional[float] = Field(default=None, description="Total experience in years")
+    highest_education_level: Optional[str] = Field(default=None, description="Highest level of education")
 
 class CandidateCreate(CandidateBase):
     pass
@@ -50,8 +48,28 @@ class CandidateResponse(CandidateBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    composite_score: Optional[float] = Field(default=None, description="Combined AI + Tech Score")
-    rank: Optional[int] = Field(default=None, description="Rank position when sorted by composite score")
+
+    model_config = ConfigDict(from_attributes=True)
+
+class JourneyBase(BaseModel):
+    stage: str
+    status: str
+    remarks: Optional[str] = Field(default=None, description="Timeline event remarks")
+    updated_by: Optional[str] = Field(default=None, description="Username of creator")
+
+class JourneyCreate(JourneyBase):
+    pass
+
+class JourneyUpdate(BaseModel):
+    stage: Optional[str] = None
+    status: Optional[str] = None
+    remarks: Optional[str] = None
+    updated_by: Optional[str] = None
+
+class JourneyResponse(JourneyBase):
+    id: int
+    candidate_id: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,3 +86,4 @@ class CommentResponse(CommentBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+

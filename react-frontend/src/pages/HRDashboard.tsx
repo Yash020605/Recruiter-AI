@@ -1,4 +1,3 @@
-import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
 import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus } from 'lucide-react';
 import api from '../utils/api';
@@ -38,7 +37,51 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
-  const [activeTab, setActiveTab] = useState<'candidates' | 'matching'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics'>('candidates');
+  const [candidateJourneys, setCandidateJourneys] = useState<Record<number, any[]>>({});
+  const [diversityData, setDiversityData] = useState<any>(null);
+  const [isDiversityLoading, setIsDiversityLoading] = useState(false);
+
+  const fetchJourney = async (id: number) => {
+    try {
+      const res = await api.get(`/candidates/${id}/journey`);
+      setCandidateJourneys(prev => ({...prev, [id]: res.data}));
+    } catch (e) {
+      console.error("Failed to fetch journey", e);
+    }
+  };
+
+  const handleLogJourneyEvent = async (candidateId: number, stage: string, remarks: string) => {
+    try {
+      await api.post(`/candidates/${candidateId}/journey`, {
+        stage,
+        status: "Completed",
+        remarks
+      });
+      fetchJourney(candidateId);
+      fetchCandidates();
+    } catch (e) {
+      alert("Failed to log stage transition");
+    }
+  };
+
+  const fetchDiversityAnalytics = async () => {
+    setIsDiversityLoading(true);
+    try {
+      const res = await api.get('/analytics/diversity');
+      setDiversityData(res.data);
+    } catch (e) {
+      console.error("Failed to fetch diversity analytics", e);
+    } finally {
+      setIsDiversityLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetchDiversityAnalytics();
+    }
+  }, [activeTab]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
   const [matchingJd, setMatchingJd] = useState("");
   const [matchingResult, setMatchingResult] = useState<any | null>(null);
@@ -72,13 +115,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [noticeFilter, setNoticeFilter] = useState("");
   const [recFilter, setRecFilter] = useState("");
   const [sortBy, setSortBy] = useState("");
-
-  // Email Generation State
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailCandidateId, setEmailCandidateId] = useState<number | null>(null);
-  const [emailType, setEmailType] = useState("invite");
-  const [generatedEmail, setGeneratedEmail] = useState("");
-  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
   const fetchAnalytics = async () => {
     try {
@@ -248,21 +284,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     }
   };
 
-  const handleGenerateEmail = async () => {
-    if (!emailCandidateId) return;
-    setIsGeneratingEmail(true);
-    setGeneratedEmail("");
-    try {
-      const res = await api.post(`/candidates/${emailCandidateId}/communication`, { email_type: emailType });
-      setGeneratedEmail(res.data.email_content);
-    } catch (error) {
-      console.error("Failed to generate email", error);
-      alert("Failed to generate email.");
-    } finally {
-      setIsGeneratingEmail(false);
-    }
-  };
-
   const handleRunWorkflow = async (candidateId: number) => {
     if (!jdText.trim()) {
       alert("Please enter a Job Description first.");
@@ -314,13 +335,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     const isExpanding = expandedId !== id;
     setExpandedId(isExpanding ? id : null);
     
-    if (isExpanding && !candidateComments[id]) {
-      try {
-        const res = await api.get(`/candidates/${id}/comments`);
-        setCandidateComments(prev => ({...prev, [id]: res.data}));
-      } catch (e) {
-        console.error("Failed to fetch comments", e);
+    if (isExpanding) {
+      if (!candidateComments[id]) {
+        try {
+          const res = await api.get(`/candidates/${id}/comments`);
+          setCandidateComments(prev => ({...prev, [id]: res.data}));
+        } catch (e) {
+          console.error("Failed to fetch comments", e);
+        }
       }
+      fetchJourney(id);
     }
   };
 
@@ -384,6 +408,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     try {
       await api.put(`/candidates/${id}`, { status: newStatus });
       fetchCandidates();
+      fetchJourney(id);
     } catch (err) {
       console.error("Failed to update status", err);
       alert("Failed to update status");
@@ -393,31 +418,9 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const handleIntegration = async (id: number, integration: string) => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
-      let body = undefined;
-      if (integration === 'github/analyze') {
-        const username = window.prompt("Enter GitHub Username:");
-        if (!username) return;
-        body = JSON.stringify({ github_username: username });
-      } else if (integration === 'calendar/schedule') {
-        const datetime = window.prompt("Enter Interview Date and Time (YYYY-MM-DD HH:MM):", "2023-11-01 10:00");
-        if (!datetime) return;
-        // Convert to ISO string (assuming local time)
-        try {
-          const isoString = new Date(datetime).toISOString();
-          body = JSON.stringify({ start_time_iso: isoString });
-        } catch (e) {
-          alert("Invalid date format");
-          return;
-        }
-      }
-
       const response = await fetch(`${API_URL}/api/v1/integrations/${integration}/${id}`, {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: body
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         alert(`${integration.split('/')[0].toUpperCase()} integration triggered successfully!`);
@@ -453,31 +456,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     } catch (err) {
       console.error(err);
       alert("Error importing candidate");
-    }
-  };
-
-  const handleLinkedinImport = async () => {
-    const url = window.prompt("Enter LinkedIn Profile URL:");
-    if (!url) return;
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
-      const response = await fetch(`${API_URL}/api/v1/integrations/linkedin/import`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ profile_url: url })
-      });
-      if (response.ok) {
-        alert("Candidate imported from LinkedIn successfully!");
-        fetchCandidates();
-      } else {
-        alert("Failed to import candidate from LinkedIn");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error importing candidate from LinkedIn");
     }
   };
 
@@ -859,6 +837,12 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
         >
           Job Matching
         </button>
+        <button 
+          onClick={() => setActiveTab('analytics')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'analytics' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          D&I Analytics
+        </button>
       </div>
 
       {activeTab === 'candidates' ? (
@@ -894,18 +878,12 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                 {uploading ? 'Uploading...' : 'Upload Candidate'}
               </button>
 
-              <div className="mt-4 border-t border-gray-700 pt-4 flex flex-col gap-2">
+              <div className="mt-4 border-t border-gray-700 pt-4">
                 <button 
                   onClick={handleNaukriImport} 
                   className="w-full py-2 bg-[#1A73E8]/20 hover:bg-[#1A73E8]/40 text-[#1A73E8] rounded-lg text-sm font-medium transition-colors border border-[#1A73E8]/30"
                 >
                   📥 Import from Naukri
-                </button>
-                <button 
-                  onClick={handleLinkedinImport} 
-                  className="w-full py-2 bg-[#0A66C2]/20 hover:bg-[#0A66C2]/40 text-[#0A66C2] rounded-lg text-sm font-medium transition-colors border border-[#0A66C2]/30"
-                >
-                  📥 Import from LinkedIn
                 </button>
               </div>
             </div>
@@ -977,7 +955,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               <select className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="">Latest Uploaded</option>
                 <option value="match_score">Match Score (High to Low)</option>
-                <option value="rank">Overall Rank (AI + Tech Score)</option>
               </select>
             </div>
           </div>
@@ -987,16 +964,11 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               <div className="py-8 text-center text-gray-400 italic">No candidates uploaded yet.</div>
             ) : (
               candidates.map((c) => (
-                <div key={c.id} className={`border border-white/10 rounded-lg overflow-hidden bg-black/20 ${sortBy === 'rank' && c.rank === 1 ? 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : ''}`}>
+                <div key={c.id} className="border border-white/10 rounded-lg overflow-hidden bg-black/20">
                   {/* Candidate Header */}
                   <div className="p-4 flex flex-wrap items-center justify-between gap-4 hover:bg-white/5 transition-colors">
                     <div className="flex-grow">
                       <h3 className="font-semibold text-lg flex items-center gap-2">
-                        {sortBy === 'rank' && c.rank && (
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.rank === 1 ? 'bg-yellow-500 text-black' : c.rank === 2 ? 'bg-gray-300 text-black' : c.rank === 3 ? 'bg-amber-700 text-white' : 'bg-white/10 text-gray-300'}`}>
-                            #{c.rank}
-                          </span>
-                        )}
                         {c.name} (ID: {c.id})
                         {role !== 'hiring_manager' && (
                           <button onClick={() => setEditCandidate({...c})} className="text-gray-400 hover:text-white transition-colors" title="Edit Candidate Details">
@@ -1016,12 +988,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           title="Candidate Pipeline Status"
                         >
                           <option value="New">New</option>
-                          <option value="Screening">Screening</option>
-                          <option value="Interview Scheduled">Interview Scheduled</option>
+                          <option value="Applied">Applied</option>
+                          <option value="Resume Parsed">Resume Parsed</option>
+                          <option value="AI Screening">AI Screening</option>
                           <option value="Shortlisted">Shortlisted</option>
-                          <option value="Rejected">Rejected</option>
+                          <option value="Interview Scheduled">Interview Scheduled</option>
+                          <option value="Interview Completed">Interview Completed</option>
+                          <option value="Selected">Selected</option>
                           <option value="Offer Sent">Offer Sent</option>
                           <option value="Hired">Hired</option>
+                          <option value="Rejected">Rejected</option>
                         </select>
                       </h3>
                       <p className="text-sm text-gray-400">File: {c.resume_path.split('/').pop() || c.resume_path.split('\\').pop()}</p>
@@ -1030,12 +1006,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                     <div className="flex items-center gap-4">
                       {c.match_score !== null && (
                         <div className="text-right">
-                          <div className="text-xl font-black text-blue-400" title="Match Score">{c.match_score}%</div>
-                          {sortBy === 'rank' && c.composite_score !== undefined && (
-                            <div className="text-xs text-purple-400 font-semibold" title="Composite Score">
-                              CS: {c.composite_score.toFixed(1)}
-                            </div>
-                          )}
+                          <div className="text-xl font-black text-blue-400">{c.match_score}%</div>
                         </div>
                       )}
                       
@@ -1059,18 +1030,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           >
                             <Play className="w-4 h-4 mr-1" />
                             {workflowRunningId === c.id ? 'Running...' : 'Run Workflow'}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setEmailCandidateId(c.id);
-                              setShowEmailModal(true);
-                            }}
-                            className="flex items-center px-4 py-2 rounded text-sm font-medium transition-colors bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"
-                            title="Generate Communication Email"
-                          >
-                            <MessageSquare className="w-4 h-4 mr-1" />
-                            Email
                           </button>
                         </div>
                       )}
@@ -1264,30 +1223,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                                   <button onClick={() => handleIntegration(c.id, 'keka/onboard')} disabled={role === 'hiring_manager'} className="text-xs bg-pink-500/20 hover:bg-pink-500/40 text-pink-300 py-2 px-3 rounded w-full transition font-medium">Onboard to Keka</button>
                                 )}
                               </div>
-                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
-                                <h5 className="text-sm font-semibold mb-3 text-cyan-400">Interview Schedule</h5>
-                                {c.google_meet_url && c.calendly_interview_time ? (
-                                  <a href={c.google_meet_url} target="_blank" rel="noreferrer" className="text-xs bg-cyan-500/10 text-cyan-400 py-2 px-3 rounded w-full flex items-center justify-center transition font-medium"><CheckCircle className="w-3 h-3 mr-1"/> Join Video</a>
-                                ) : (
-                                  <button onClick={() => handleIntegration(c.id, 'calendar/schedule')} disabled={role === 'hiring_manager'} className="text-xs bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 py-2 px-3 rounded w-full transition font-medium">Schedule Interview</button>
-                                )}
-                              </div>
-                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
-                                <h5 className="text-sm font-semibold mb-3 text-indigo-400">GitHub</h5>
-                                {c.github_score !== null ? (
-                                  <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> Tech Score: {c.github_score}</div>
-                                ) : (
-                                  <button onClick={() => handleIntegration(c.id, 'github/analyze')} disabled={role === 'hiring_manager'} className="text-xs bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 py-2 px-3 rounded w-full transition font-medium">Analyze Profile</button>
-                                )}
-                              </div>
-                              <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
-                                <h5 className="text-sm font-semibold mb-3 text-green-400">Google Sheets</h5>
-                                {c.google_sheets_sync_status ? (
-                                  <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> {c.google_sheets_sync_status}</div>
-                                ) : (
-                                  <button onClick={() => handleIntegration(c.id, 'google-sheets/export')} disabled={role === 'hiring_manager'} className="text-xs bg-green-500/20 hover:bg-green-500/40 text-green-300 py-2 px-3 rounded w-full transition font-medium">Export Data</button>
-                                )}
-                              </div>
                             </div>
                           </div>
 
@@ -1326,6 +1261,85 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           Run analysis against a Job Description to view detailed logs.
                         </div>
                       )}
+                      {/* Journey Section */}
+                      <div className="bg-black/60 p-6 border-t border-white/10 mt-6 rounded-b-lg">
+                        <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-4">Candidate Journey Timeline</h4>
+                        
+                        <div className="relative border-l border-white/20 ml-3 pl-6 space-y-6">
+                          {candidateJourneys[c.id] && candidateJourneys[c.id].length > 0 ? (
+                            candidateJourneys[c.id].map((event: any, idx: number) => (
+                              <div key={idx} className="relative">
+                                {/* Dot marker */}
+                                <span className="absolute -left-[31px] top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-black/40">
+                                  <span className="h-2 w-2 rounded-full bg-white"></span>
+                                </span>
+                                <div>
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="font-semibold text-white text-xs bg-blue-500/20 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
+                                      {event.stage}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(event.created_at).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-300 text-sm mt-2 font-medium">
+                                    Status: <span className="text-gray-400 font-normal">{event.status}</span>
+                                  </p>
+                                  {event.remarks && (
+                                    <p className="text-gray-400 text-sm mt-1 bg-white/5 p-2 rounded border border-white/5 italic">
+                                      "{event.remarks}"
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Updated by: <span className="text-gray-400 font-semibold">{event.updated_by}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-gray-500 text-sm italic">No journey history recorded yet.</div>
+                          )}
+                        </div>
+
+                        {/* Form to log a new journey event */}
+                        {role !== 'hiring_manager' && (
+                          <div className="mt-8 border-t border-white/10 pt-6">
+                            <h5 className="text-sm font-semibold text-gray-300 mb-4">Add Journey Event / Stage Transition</h5>
+                            <form onSubmit={(e) => {
+                              e.preventDefault();
+                              const form = e.target as HTMLFormElement;
+                              const stage = (form.elements.namedItem('stage') as HTMLSelectElement).value;
+                              const remarks = (form.elements.namedItem('remarks') as HTMLInputElement).value;
+                              handleLogJourneyEvent(c.id, stage, remarks);
+                              form.reset();
+                            }} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-white/5 p-4 rounded-lg border border-white/10">
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">Target Stage</label>
+                                <select name="stage" required className="w-full bg-gray-900 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                  <option value="Applied">Applied</option>
+                                  <option value="Resume Parsed">Resume Parsed</option>
+                                  <option value="AI Screening">AI Screening</option>
+                                  <option value="Shortlisted">Shortlisted</option>
+                                  <option value="Interview Scheduled">Interview Scheduled</option>
+                                  <option value="Interview Completed">Interview Completed</option>
+                                  <option value="Selected">Selected</option>
+                                  <option value="Offer Sent">Offer Sent</option>
+                                  <option value="Hired">Hired</option>
+                                  <option value="Rejected">Rejected</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">Remarks</label>
+                                <input type="text" name="remarks" placeholder="Optional comments..." className="w-full bg-gray-900 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                              </div>
+                              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2 px-4 rounded transition-colors w-full h-9">
+                                Log Transition
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Comments Section */}
                       <div className="bg-black/60 p-6 border-t border-white/10 mt-6 rounded-b-lg">
                         <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-4">Internal Comments</h4>
@@ -1369,7 +1383,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           </div>
         </div>
       </div>
-    ) : (
+    ) : activeTab === 'matching' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
           {/* Left Column: Input Selection & JD */}
           <div className="lg:col-span-1 flex flex-col space-y-6">
@@ -1526,9 +1540,172 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             )}
           </div>
         </div>
+    ) : (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="glass-card p-6">
+            <h2 className="text-2xl font-bold mb-6 flex items-center text-blue-400 border-b border-white/10 pb-4">
+              📊 Diversity & Inclusion Analytics
+            </h2>
+
+            {isDiversityLoading || !diversityData ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-400 text-sm">Aggregating database demographic and hiring metrics...</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Metrics Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Total Candidates</span>
+                    <div className="text-4xl font-black text-white">{candidates.length}</div>
+                    <p className="text-xs text-gray-400 mt-2">Active records in pool</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Selection Rate</span>
+                    <div className="text-4xl font-black text-green-400">{diversityData.selection_rate}%</div>
+                    <p className="text-xs text-gray-400 mt-2">Hired or Selected candidates</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Rejection Rate</span>
+                    <div className="text-4xl font-black text-red-400">{diversityData.rejection_rate}%</div>
+                    <p className="text-xs text-gray-400 mt-2">Rejected candidates</p>
+                  </div>
+                </div>
+
+                {/* Distribution Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Gender */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Gender Representation</h3>
+                    <div className="space-y-4">
+                      {diversityData.gender_distribution.length > 0 ? (
+                        diversityData.gender_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No gender data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Education Background</h3>
+                    <div className="space-y-4">
+                      {diversityData.education_distribution.length > 0 ? (
+                        diversityData.education_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No education data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Experience */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Experience Level</h3>
+                    <div className="space-y-4">
+                      {diversityData.experience_distribution.length > 0 ? (
+                        diversityData.experience_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium capitalize">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No experience data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Candidate Locations</h3>
+                    <div className="space-y-4">
+                      {diversityData.location_distribution.length > 0 ? (
+                        diversityData.location_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No location data available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Funnel Section */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-6 border-b border-white/5 pb-2">Hiring Funnel</h3>
+                  <div className="space-y-4 max-w-2xl mx-auto">
+                    {diversityData.hiring_funnel.length > 0 ? (
+                      diversityData.hiring_funnel.map((item: any, idx: number) => {
+                        const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                        return (
+                          <div key={idx} className="flex items-center gap-4">
+                            <span className="w-40 text-sm text-gray-300 font-semibold text-right">{item.name}</span>
+                            <div className="flex-1 h-8 bg-gray-800/50 rounded-lg overflow-hidden border border-white/5 relative">
+                              <div className="h-full bg-gradient-to-r from-blue-600/50 to-indigo-600/50 rounded-lg transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              <span className="absolute inset-0 flex items-center pl-3 text-xs font-bold text-white">
+                                {item.value} candidates ({percentage.toFixed(0)}%)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-500 text-sm italic text-center">No funnel data available.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
-      <InterviewSection />
       {/* Floating Chat Widget */}
       {role !== 'hiring_manager' && (
         <div className="fixed bottom-6 right-6 z-50">
@@ -1585,68 +1762,6 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           )}
         </div>
       )}
-      {/* Email Generation Modal */}
-      {showEmailModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-white/10 p-6 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold flex items-center">
-                <MessageSquare className="w-5 h-5 mr-2 text-teal-400" />
-                Generate Communication Template
-              </h2>
-              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Email Type</label>
-                <select 
-                  value={emailType} 
-                  onChange={(e) => setEmailType(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded p-2 text-white"
-                >
-                  <option value="invite">Interview Invitation</option>
-                  <option value="reject">Rejection</option>
-                  <option value="offer">Job Offer</option>
-                </select>
-              </div>
-
-              <button 
-                onClick={handleGenerateEmail}
-                disabled={isGeneratingEmail}
-                className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-800 text-white font-medium py-2 rounded transition-colors"
-              >
-                {isGeneratingEmail ? 'Generating...' : 'Generate with AI'}
-              </button>
-
-              {generatedEmail && (
-                <div className="mt-6">
-                  <label className="block text-sm text-gray-400 mb-2">Generated Template (Editable)</label>
-                  <textarea 
-                    value={generatedEmail}
-                    onChange={(e) => setGeneratedEmail(e.target.value)}
-                    className="w-full h-64 bg-black border border-white/10 rounded p-4 text-sm text-gray-300 font-mono focus:outline-none focus:border-teal-500"
-                  />
-                  <div className="flex justify-end mt-4">
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedEmail);
-                        alert("Copied to clipboard!");
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition-colors"
-                    >
-                      Copy to Clipboard
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

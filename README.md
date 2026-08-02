@@ -10,12 +10,9 @@ Recruiter AI is a cutting-edge, stateful multi-agent recruitment platform design
 ## 🚀 Features
 
 - **Multi-Agent Evaluation:** Utilizes stateful LangGraph workflows to score candidate profiles autonomously. Agents extract skills, compare them to the Job Description, and assign a match score.
-- **Automated Interview Scheduling:** Seamlessly schedule technical and HR interviews with candidates. Includes automated calendar invitations with Jitsi Meet links.
-- **Candidate Ranking System:** Dynamically computes a composite score based on AI match evaluation and technical assessments (like HackerEarth) to assign objective, color-coded rank badges, surfacing the top candidates instantly.
 - **Background Processing:** AI evaluations are pushed to background tasks, enabling non-blocking, asynchronous analysis of hundreds of candidates at once.
 - **Interactive HR Dashboard:** A highly dynamic React dashboard with real-time websocket integration, enabling recruiters to view status updates live.
 - **Third-Party Integrations:** API-ready endpoints for initiating background checks (AuthBridge), triggering technical assessments (HackerEarth), syncing ATS records (Zoho Recruit), and onboarding (Keka HRMS).
-- **Real-World API Connections:** Full integration with Google Calendar API (automated Jitsi Meet scheduling), Google Sheets API (candidate data export), and GitHub API (technical profile analysis).
 - **AI Chat Assistant:** A built-in LLM-powered mentor/assistant restricted to retrieving only HR and candidate-related insights.
 
 ## 👥 Role-Based Access Control (RBAC)
@@ -70,10 +67,10 @@ python -m venv .venv
 source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
 pip install -r requirements.txt
 ```
-*Configure your `.env` file in the project root with your API keys and Google Credentials (see Environment Variables section).*
+*Configure your `.env` file in the backend root with your API keys (OpenAI, Zoho, Keka, etc.).*
 
 ```bash
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend Initialization
@@ -84,23 +81,15 @@ npm run dev
 ```
 
 ## 🔐 Environment Variables (.env)
-To enable the "Action" integrations and LLM reasoning, a `.env` file is required in the project root directory:
+To enable the "Action" integrations and LLM reasoning, a `.env` file is required in the `/backend` directory:
 ```ini
-# Core
 OPENAI_API_KEY="sk-..."
 NVIDIA_API_KEY="nvapi-..."
-DATABASE_URL="sqlite:///./recruiter.db"
-
-# Real Integrations
-GOOGLE_CREDENTIALS_PATH="backend/credentials.json"
-GOOGLE_SHEET_ID="..."
-GOOGLE_CALENDAR_ID="..."
-
-# Mock Integrations
 ZOHO_CLIENT_ID="..."
 HACKEREARTH_CLIENT_SECRET="..."
 AUTHBRIDGE_TOKEN="..."
 KEKA_API_KEY="..."
+DATABASE_URL="sqlite:///./recruiter.db"
 ```
 
 ## 🤝 Contributing
