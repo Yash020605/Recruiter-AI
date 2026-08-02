@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 def test_login_success(client: TestClient):
     response = client.post(
-        "/api/v1/auth/login",
+        "/api/v1/login",
         data={"username": "admin", "password": "admin"}
     )
     assert response.status_code == status.HTTP_200_OK
@@ -15,7 +15,7 @@ def test_login_success(client: TestClient):
 
 def test_login_failure(client: TestClient):
     response = client.post(
-        "/api/v1/auth/login",
+        "/api/v1/login",
         data={"username": "wrong", "password": "wrong"}
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

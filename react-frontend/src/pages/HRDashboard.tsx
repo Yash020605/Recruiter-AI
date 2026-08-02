@@ -37,7 +37,51 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
-  const [activeTab, setActiveTab] = useState<'candidates' | 'matching'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics'>('candidates');
+  const [candidateJourneys, setCandidateJourneys] = useState<Record<number, any[]>>({});
+  const [diversityData, setDiversityData] = useState<any>(null);
+  const [isDiversityLoading, setIsDiversityLoading] = useState(false);
+
+  const fetchJourney = async (id: number) => {
+    try {
+      const res = await api.get(`/candidates/${id}/journey`);
+      setCandidateJourneys(prev => ({...prev, [id]: res.data}));
+    } catch (e) {
+      console.error("Failed to fetch journey", e);
+    }
+  };
+
+  const handleLogJourneyEvent = async (candidateId: number, stage: string, remarks: string) => {
+    try {
+      await api.post(`/candidates/${candidateId}/journey`, {
+        stage,
+        status: "Completed",
+        remarks
+      });
+      fetchJourney(candidateId);
+      fetchCandidates();
+    } catch (e) {
+      alert("Failed to log stage transition");
+    }
+  };
+
+  const fetchDiversityAnalytics = async () => {
+    setIsDiversityLoading(true);
+    try {
+      const res = await api.get('/analytics/diversity');
+      setDiversityData(res.data);
+    } catch (e) {
+      console.error("Failed to fetch diversity analytics", e);
+    } finally {
+      setIsDiversityLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetchDiversityAnalytics();
+    }
+  }, [activeTab]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
   const [matchingJd, setMatchingJd] = useState("");
   const [matchingResult, setMatchingResult] = useState<any | null>(null);
@@ -291,13 +335,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     const isExpanding = expandedId !== id;
     setExpandedId(isExpanding ? id : null);
     
-    if (isExpanding && !candidateComments[id]) {
-      try {
-        const res = await api.get(`/candidates/${id}/comments`);
-        setCandidateComments(prev => ({...prev, [id]: res.data}));
-      } catch (e) {
-        console.error("Failed to fetch comments", e);
+    if (isExpanding) {
+      if (!candidateComments[id]) {
+        try {
+          const res = await api.get(`/candidates/${id}/comments`);
+          setCandidateComments(prev => ({...prev, [id]: res.data}));
+        } catch (e) {
+          console.error("Failed to fetch comments", e);
+        }
       }
+      fetchJourney(id);
     }
   };
 
@@ -361,6 +408,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     try {
       await api.put(`/candidates/${id}`, { status: newStatus });
       fetchCandidates();
+      fetchJourney(id);
     } catch (err) {
       console.error("Failed to update status", err);
       alert("Failed to update status");
@@ -789,6 +837,12 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
         >
           Job Matching
         </button>
+        <button 
+          onClick={() => setActiveTab('analytics')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'analytics' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          D&I Analytics
+        </button>
       </div>
 
       {activeTab === 'candidates' ? (
@@ -934,12 +988,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           title="Candidate Pipeline Status"
                         >
                           <option value="New">New</option>
-                          <option value="Screening">Screening</option>
-                          <option value="Interview Scheduled">Interview Scheduled</option>
+                          <option value="Applied">Applied</option>
+                          <option value="Resume Parsed">Resume Parsed</option>
+                          <option value="AI Screening">AI Screening</option>
                           <option value="Shortlisted">Shortlisted</option>
-                          <option value="Rejected">Rejected</option>
+                          <option value="Interview Scheduled">Interview Scheduled</option>
+                          <option value="Interview Completed">Interview Completed</option>
+                          <option value="Selected">Selected</option>
                           <option value="Offer Sent">Offer Sent</option>
                           <option value="Hired">Hired</option>
+                          <option value="Rejected">Rejected</option>
                         </select>
                       </h3>
                       <p className="text-sm text-gray-400">File: {c.resume_path.split('/').pop() || c.resume_path.split('\\').pop()}</p>
@@ -1203,6 +1261,85 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           Run analysis against a Job Description to view detailed logs.
                         </div>
                       )}
+                      {/* Journey Section */}
+                      <div className="bg-black/60 p-6 border-t border-white/10 mt-6 rounded-b-lg">
+                        <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-4">Candidate Journey Timeline</h4>
+                        
+                        <div className="relative border-l border-white/20 ml-3 pl-6 space-y-6">
+                          {candidateJourneys[c.id] && candidateJourneys[c.id].length > 0 ? (
+                            candidateJourneys[c.id].map((event: any, idx: number) => (
+                              <div key={idx} className="relative">
+                                {/* Dot marker */}
+                                <span className="absolute -left-[31px] top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-black/40">
+                                  <span className="h-2 w-2 rounded-full bg-white"></span>
+                                </span>
+                                <div>
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="font-semibold text-white text-xs bg-blue-500/20 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
+                                      {event.stage}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(event.created_at).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-300 text-sm mt-2 font-medium">
+                                    Status: <span className="text-gray-400 font-normal">{event.status}</span>
+                                  </p>
+                                  {event.remarks && (
+                                    <p className="text-gray-400 text-sm mt-1 bg-white/5 p-2 rounded border border-white/5 italic">
+                                      "{event.remarks}"
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Updated by: <span className="text-gray-400 font-semibold">{event.updated_by}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-gray-500 text-sm italic">No journey history recorded yet.</div>
+                          )}
+                        </div>
+
+                        {/* Form to log a new journey event */}
+                        {role !== 'hiring_manager' && (
+                          <div className="mt-8 border-t border-white/10 pt-6">
+                            <h5 className="text-sm font-semibold text-gray-300 mb-4">Add Journey Event / Stage Transition</h5>
+                            <form onSubmit={(e) => {
+                              e.preventDefault();
+                              const form = e.target as HTMLFormElement;
+                              const stage = (form.elements.namedItem('stage') as HTMLSelectElement).value;
+                              const remarks = (form.elements.namedItem('remarks') as HTMLInputElement).value;
+                              handleLogJourneyEvent(c.id, stage, remarks);
+                              form.reset();
+                            }} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-white/5 p-4 rounded-lg border border-white/10">
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">Target Stage</label>
+                                <select name="stage" required className="w-full bg-gray-900 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                  <option value="Applied">Applied</option>
+                                  <option value="Resume Parsed">Resume Parsed</option>
+                                  <option value="AI Screening">AI Screening</option>
+                                  <option value="Shortlisted">Shortlisted</option>
+                                  <option value="Interview Scheduled">Interview Scheduled</option>
+                                  <option value="Interview Completed">Interview Completed</option>
+                                  <option value="Selected">Selected</option>
+                                  <option value="Offer Sent">Offer Sent</option>
+                                  <option value="Hired">Hired</option>
+                                  <option value="Rejected">Rejected</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">Remarks</label>
+                                <input type="text" name="remarks" placeholder="Optional comments..." className="w-full bg-gray-900 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                              </div>
+                              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2 px-4 rounded transition-colors w-full h-9">
+                                Log Transition
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Comments Section */}
                       <div className="bg-black/60 p-6 border-t border-white/10 mt-6 rounded-b-lg">
                         <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-4">Internal Comments</h4>
@@ -1246,7 +1383,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           </div>
         </div>
       </div>
-    ) : (
+    ) : activeTab === 'matching' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
           {/* Left Column: Input Selection & JD */}
           <div className="lg:col-span-1 flex flex-col space-y-6">
@@ -1399,6 +1536,170 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                 <FileText className="w-16 h-16 text-gray-600 mb-4 stroke-1" />
                 <h3 className="text-lg font-medium mb-1">No Match Analysis Performed</h3>
                 <p className="text-sm text-gray-500 max-w-sm">Select a candidate and paste a job description on the left, then click "Analyze Match" to generate insights.</p>
+              </div>
+            )}
+          </div>
+        </div>
+    ) : (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="glass-card p-6">
+            <h2 className="text-2xl font-bold mb-6 flex items-center text-blue-400 border-b border-white/10 pb-4">
+              📊 Diversity & Inclusion Analytics
+            </h2>
+
+            {isDiversityLoading || !diversityData ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-400 text-sm">Aggregating database demographic and hiring metrics...</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Metrics Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Total Candidates</span>
+                    <div className="text-4xl font-black text-white">{candidates.length}</div>
+                    <p className="text-xs text-gray-400 mt-2">Active records in pool</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Selection Rate</span>
+                    <div className="text-4xl font-black text-green-400">{diversityData.selection_rate}%</div>
+                    <p className="text-xs text-gray-400 mt-2">Hired or Selected candidates</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm">
+                    <span className="block text-xs uppercase font-bold text-gray-500 tracking-wider mb-2">Rejection Rate</span>
+                    <div className="text-4xl font-black text-red-400">{diversityData.rejection_rate}%</div>
+                    <p className="text-xs text-gray-400 mt-2">Rejected candidates</p>
+                  </div>
+                </div>
+
+                {/* Distribution Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Gender */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Gender Representation</h3>
+                    <div className="space-y-4">
+                      {diversityData.gender_distribution.length > 0 ? (
+                        diversityData.gender_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No gender data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Education Background</h3>
+                    <div className="space-y-4">
+                      {diversityData.education_distribution.length > 0 ? (
+                        diversityData.education_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No education data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Experience */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Experience Level</h3>
+                    <div className="space-y-4">
+                      {diversityData.experience_distribution.length > 0 ? (
+                        diversityData.experience_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium capitalize">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No experience data available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 border-b border-white/5 pb-2">Candidate Locations</h3>
+                    <div className="space-y-4">
+                      {diversityData.location_distribution.length > 0 ? (
+                        diversityData.location_distribution.map((item: any, idx: number) => {
+                          const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-300 font-medium">{item.name}</span>
+                                <span className="text-gray-400">{item.value} ({percentage.toFixed(1)}%)</span>
+                              </div>
+                              <div className="h-3 bg-gray-800 rounded-full overflow-hidden w-full">
+                                <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">No location data available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Funnel Section */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-6 border-b border-white/5 pb-2">Hiring Funnel</h3>
+                  <div className="space-y-4 max-w-2xl mx-auto">
+                    {diversityData.hiring_funnel.length > 0 ? (
+                      diversityData.hiring_funnel.map((item: any, idx: number) => {
+                        const percentage = candidates.length > 0 ? (item.value / candidates.length) * 100 : 0;
+                        return (
+                          <div key={idx} className="flex items-center gap-4">
+                            <span className="w-40 text-sm text-gray-300 font-semibold text-right">{item.name}</span>
+                            <div className="flex-1 h-8 bg-gray-800/50 rounded-lg overflow-hidden border border-white/5 relative">
+                              <div className="h-full bg-gradient-to-r from-blue-600/50 to-indigo-600/50 rounded-lg transition-all duration-500" style={{ width: `${percentage}%` }}></div>
+                              <span className="absolute inset-0 flex items-center pl-3 text-xs font-bold text-white">
+                                {item.value} candidates ({percentage.toFixed(0)}%)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-500 text-sm italic text-center">No funnel data available.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

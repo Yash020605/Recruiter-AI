@@ -11,9 +11,11 @@ from backend.api.routes import router as api_router
 from backend.api.integrations import router as integrations_router
 import time
 
+from backend.database.migration import run_migrations
+
 logger = get_logger(__name__)
-logger.info("Initializing database schema...")
-Base.metadata.create_all(bind=engine)
+logger.info("Initializing database schema and running migrations...")
+run_migrations()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

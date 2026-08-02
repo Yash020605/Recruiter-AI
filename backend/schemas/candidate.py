@@ -32,6 +32,11 @@ class CandidateBase(BaseModel):
     hackerearth_assessment_url: Optional[str] = Field(default=None, description="HackerEarth Test URL")
     hackerearth_score: Optional[float] = Field(default=None, description="HackerEarth Technical Score")
     authbridge_bgv_status: Optional[str] = Field(default=None, description="AuthBridge BGV Status")
+    
+    # Diversity & Inclusion fields
+    gender: Optional[str] = Field(default=None, description="Gender")
+    total_experience_years: Optional[float] = Field(default=None, description="Total experience in years")
+    highest_education_level: Optional[str] = Field(default=None, description="Highest level of education")
 
 class CandidateCreate(CandidateBase):
     pass
@@ -43,6 +48,28 @@ class CandidateResponse(CandidateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class JourneyBase(BaseModel):
+    stage: str
+    status: str
+    remarks: Optional[str] = Field(default=None, description="Timeline event remarks")
+    updated_by: Optional[str] = Field(default=None, description="Username of creator")
+
+class JourneyCreate(JourneyBase):
+    pass
+
+class JourneyUpdate(BaseModel):
+    stage: Optional[str] = None
+    status: Optional[str] = None
+    remarks: Optional[str] = None
+    updated_by: Optional[str] = None
+
+class JourneyResponse(JourneyBase):
+    id: int
+    candidate_id: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,3 +86,4 @@ class CommentResponse(CommentBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+

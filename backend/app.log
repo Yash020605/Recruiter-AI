@@ -102,3 +102,57 @@
 2026-07-26 01:05:01 - backend.main - INFO - Initializing database schema...
 2026-07-26 01:05:30 - backend.api.routes - INFO - Login attempt for user: hiring_manager
 2026-07-26 01:05:30 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-08-02 17:24:49 - backend.main - INFO - Initializing database schema...
+2026-08-02 17:25:08 - backend.main - INFO - Initializing database schema...
+2026-08-02 17:30:55 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 17:31:02 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 17:31:02 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 17:31:04 - backend.api.routes - INFO - Login attempt for user: wrong
+2026-08-02 17:31:04 - backend.api.routes - WARNING - Login failed: User wrong not found.
+2026-08-02 17:32:32 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 17:32:39 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 17:32:39 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 17:32:41 - backend.api.routes - INFO - Login attempt for user: wrong
+2026-08-02 17:32:41 - backend.api.routes - WARNING - Login failed: User wrong not found.
+2026-08-02 17:33:04 - backend.api.routes - ERROR - Workflow execution failed: 'MockCandidate' object has no attribute 'gender'
+2026-08-02 17:33:09 - backend.main - ERROR - InvalidDocumentError: Only PDF, DOCX and TXT files are supported.
+2026-08-02 17:33:11 - backend.main - ERROR - InvalidDocumentError: The uploaded file is empty.
+2026-08-02 17:33:55 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 17:34:03 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 17:34:03 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 17:34:05 - backend.api.routes - INFO - Login attempt for user: wrong
+2026-08-02 17:34:05 - backend.api.routes - WARNING - Login failed: User wrong not found.
+2026-08-02 17:34:33 - backend.main - ERROR - InvalidDocumentError: Only PDF, DOCX and TXT files are supported.
+2026-08-02 17:34:35 - backend.main - ERROR - InvalidDocumentError: The uploaded file is empty.
+2026-08-02 17:35:16 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 17:35:23 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 17:35:23 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 17:35:25 - backend.api.routes - INFO - Login attempt for user: wrong
+2026-08-02 17:35:25 - backend.api.routes - WARNING - Login failed: User wrong not found.
+2026-08-02 17:36:02 - backend.main - ERROR - InvalidDocumentError: Only PDF, DOCX and TXT files are supported.
+2026-08-02 17:36:04 - backend.main - ERROR - InvalidDocumentError: The uploaded file is empty.
+2026-08-02 17:58:02 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 18:00:50 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 18:02:24 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 18:02:49 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 18:02:49 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 18:02:57 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-08-02 18:02:57 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-08-02 18:03:09 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 18:03:09 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 18:03:18 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-08-02 18:03:18 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-08-02 18:04:09 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 18:04:09 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 18:04:31 - backend.api.routes - INFO - Login attempt for user: recruiter
+2026-08-02 18:04:31 - backend.api.routes - INFO - Fallback recruiter login successful with role recruiter.
+2026-08-02 18:05:39 - backend.api.routes - INFO - Login attempt for user: hiring_manager
+2026-08-02 18:05:39 - backend.api.routes - INFO - Fallback hiring_manager login successful with role hiring_manager.
+2026-08-02 18:25:17 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 18:25:39 - backend.main - INFO - Initializing database schema and running migrations...
+2026-08-02 18:25:45 - backend.api.routes - INFO - Login attempt for user: admin
+2026-08-02 18:25:45 - backend.api.routes - INFO - Fallback admin login successful with role admin.
+2026-08-02 18:25:47 - backend.api.routes - INFO - Login attempt for user: wrong
+2026-08-02 18:25:47 - backend.api.routes - WARNING - Login failed: User wrong not found.
+2026-08-02 18:26:24 - backend.main - ERROR - InvalidDocumentError: Only PDF, DOCX and TXT files are supported.
+2026-08-02 18:26:26 - backend.main - ERROR - InvalidDocumentError: The uploaded file is empty.

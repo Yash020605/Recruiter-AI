@@ -30,3 +30,7 @@ Thumbs.db
 
 # Agentic / AI Logs
 .gemini/
+
+# Uploads
+uploads/
+

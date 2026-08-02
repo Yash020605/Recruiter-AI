@@ -73,8 +73,28 @@ class Candidate(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    # Diversity & Inclusion fields
+    gender = Column(String, nullable=True)
+    total_experience_years = Column(Float, nullable=True)
+    highest_education_level = Column(String, nullable=True)
+
     # Relationships
     comments = relationship("Comment", back_populates="candidate", cascade="all, delete-orphan")
+    journey_history = relationship("CandidateJourney", back_populates="candidate", cascade="all, delete-orphan", order_by="CandidateJourney.created_at.asc()")
+
+class CandidateJourney(Base):
+    __tablename__ = "candidate_journeys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True)
+    stage = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    remarks = Column(Text, nullable=True)
+    updated_by = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    candidate = relationship("Candidate", back_populates="journey_history")
 
 class Comment(Base):
     __tablename__ = "comments"
@@ -105,4 +125,5 @@ class JobMatch(Base):
 
     # Relationships
     candidate = relationship("Candidate")
+
 
