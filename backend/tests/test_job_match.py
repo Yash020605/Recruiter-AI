@@ -81,3 +81,6 @@ def test_job_match_success(mock_invoke, client: TestClient, db_session: Session)
     assert "React" in res_data["missing_skills"]
     assert "FastAPI" in res_data["extra_skills"]
     assert res_data["summary"] == "Great Python developer with extra backend experience."
+    assert res_data["tech_match_score"] == 50.0
+    assert "Python" in res_data["matched_technologies"]
+    assert "React" in res_data["missing_technologies"]

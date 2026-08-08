@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import json
 import asyncio
@@ -520,6 +521,157 @@ async def analyze_candidate(
     )
 
 # --- Job Match Endpoints ---
+TARGET_TECHS = [
+    "Java", "Python", "React", "Angular", "JavaScript", "TypeScript", "Node.js", "Express",
+    "Spring", "Spring Boot", "Django", "Flask", "FastAPI", "HTML", "CSS", "SQL", "MySQL",
+    "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Git",
+    "Linux", "TensorFlow", "PyTorch", "Pandas", "NumPy", "OpenCV"
+]
+
+def extract_technologies(skills: List[str]) -> List[str]:
+    if not skills:
+        return []
+    
+    extracted = set()
+    
+    for skill in skills:
+        if not skill:
+            continue
+        s = skill.strip().lower()
+        
+        # Java (avoiding javascript)
+        if "java" in s and "javascript" not in s:
+            extracted.add("Java")
+        
+        # Python
+        if "python" in s or s == "py":
+            extracted.add("Python")
+            
+        # React
+        if "react" in s:
+            extracted.add("React")
+            
+        # Angular
+        if "angular" in s:
+            extracted.add("Angular")
+            
+        # JavaScript
+        if "javascript" in s or s == "js" or "ecmascript" in s:
+            extracted.add("JavaScript")
+            
+        # TypeScript
+        if "typescript" in s or s == "ts":
+            extracted.add("TypeScript")
+            
+        # Node.js
+        if "node" in s:
+            extracted.add("Node.js")
+            
+        # Express
+        if "express" in s:
+            extracted.add("Express")
+            
+        # Spring Boot / Spring
+        if "spring boot" in s or "springboot" in s:
+            extracted.add("Spring Boot")
+            extracted.add("Spring")
+        elif "spring" in s:
+            extracted.add("Spring")
+            
+        # Django
+        if "django" in s:
+            extracted.add("Django")
+            
+        # Flask
+        if "flask" in s:
+            extracted.add("Flask")
+            
+        # FastAPI
+        if "fastapi" in s or "fast api" in s:
+            extracted.add("FastAPI")
+            
+        # HTML
+        if "html" in s:
+            extracted.add("HTML")
+            
+        # CSS
+        if "css" in s:
+            extracted.add("CSS")
+            
+        # SQL
+        if "sql" in s:
+            if s == "sql" or re.search(r'\bsql\b', s):
+                extracted.add("SQL")
+            
+        # MySQL
+        if "mysql" in s:
+            extracted.add("MySQL")
+            extracted.add("SQL")
+            
+        # PostgreSQL
+        if "postgresql" in s or "postgres" in s or "psql" in s:
+            extracted.add("PostgreSQL")
+            extracted.add("SQL")
+            
+        # MongoDB
+        if "mongodb" in s or "mongo" in s:
+            extracted.add("MongoDB")
+            
+        # Redis
+        if "redis" in s:
+            extracted.add("Redis")
+            
+        # Docker
+        if "docker" in s:
+            extracted.add("Docker")
+            
+        # Kubernetes
+        if "kubernetes" in s or "k8s" in s:
+            extracted.add("Kubernetes")
+            
+        # AWS
+        if "aws" in s or "amazon web services" in s:
+            extracted.add("AWS")
+            
+        # Azure
+        if "azure" in s:
+            extracted.add("Azure")
+            
+        # GCP
+        if "gcp" in s or "google cloud" in s:
+            extracted.add("GCP")
+            
+        # Git
+        if "git" in s:
+            if s == "git" or re.search(r'\bgit\b', s) or "github" in s or "gitlab" in s:
+                extracted.add("Git")
+                
+        # Linux
+        if "linux" in s:
+            extracted.add("Linux")
+            
+        # TensorFlow
+        if "tensorflow" in s or s == "tf" or re.search(r'\btf\b', s):
+            extracted.add("TensorFlow")
+            
+        # PyTorch
+        if "pytorch" in s:
+            extracted.add("PyTorch")
+            
+        # Pandas
+        if "pandas" in s:
+            extracted.add("Pandas")
+            
+        # NumPy
+        if "numpy" in s:
+            extracted.add("NumPy")
+            
+        # OpenCV
+        if "opencv" in s:
+            extracted.add("OpenCV")
+            
+    return list(extracted)
+
 class JobMatchRequest(BaseModel):
     candidate_id: int
     job_description: str
@@ -530,6 +682,9 @@ class JobMatchResponse(BaseModel):
     missing_skills: List[str]
     extra_skills: List[str]
     summary: str
+    tech_match_score: float = 100.0
+    matched_technologies: List[str] = []
+    missing_technologies: List[str] = []
 
 @router.post("/job/match", response_model=JobMatchResponse, tags=["job"], dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))])
 def match_job_description(
@@ -688,6 +843,23 @@ Do not include any formatting other than the JSON block.
             "summary": "Match computed using fallback keyword overlap logic due to LLM match error."
         }
 
+    # Compute tech skill matching fields
+    required_techs = extract_technologies(jd_data.get("technical_skills", []))
+    candidate_techs = extract_technologies(candidate_skills)
+
+    if not required_techs:
+        tech_match_score = 100.0
+        matched_technologies = []
+        missing_technologies = []
+    else:
+        matched_set = set(required_techs).intersection(set(candidate_techs))
+        missing_set = set(required_techs).difference(set(candidate_techs))
+
+        matched_technologies = [tech for tech in required_techs if tech in matched_set]
+        missing_technologies = [tech for tech in required_techs if tech in missing_set]
+
+        tech_match_score = round((len(matched_technologies) / len(required_techs)) * 100, 2)
+
     # Save the match details to the database for analytics
     new_match = JobMatch(
         candidate_id=request.candidate_id,
@@ -707,7 +879,10 @@ Do not include any formatting other than the JSON block.
         matched_skills=json.loads(new_match.matched_skills),
         missing_skills=json.loads(new_match.missing_skills),
         extra_skills=json.loads(new_match.extra_skills),
-        summary=new_match.summary
+        summary=new_match.summary,
+        tech_match_score=tech_match_score,
+        matched_technologies=matched_technologies,
+        missing_technologies=missing_technologies
     )
 
 # --- Recruitment Workflow Endpoint ---

@@ -1474,6 +1474,65 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                   </div>
                 </div>
 
+                {/* Tech Skill Match */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 shadow-sm space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Tech Skill Match</h3>
+                      <p className="text-xs text-gray-400">Comparison of required technical skills from the job description against the resume.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl font-black text-blue-400">
+                        {matchingResult.tech_match_score !== undefined ? matchingResult.tech_match_score : 100}%
+                      </div>
+                      <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-400 rounded-full" 
+                          style={{ width: `${matchingResult.tech_match_score !== undefined ? matchingResult.tech_match_score : 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
+                        Matched Technologies ({(matchingResult.matched_technologies || []).length})
+                      </h4>
+                      {(matchingResult.matched_technologies || []).length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {(matchingResult.matched_technologies || []).map((tech: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-xs font-semibold">
+                              ✓ {tech}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No matched technologies.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 mr-2"></span>
+                        Missing Technologies ({(matchingResult.missing_technologies || []).length})
+                      </h4>
+                      {(matchingResult.missing_technologies || []).length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {(matchingResult.missing_technologies || []).map((tech: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-semibold">
+                              ✗ {tech}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No missing technologies.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Skills Analysis */}
                 <div className="space-y-6">
                   <div>
