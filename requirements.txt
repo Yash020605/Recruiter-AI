@@ -1,1 +1,1 @@
--r backend/requirements.txt
+# Dummy requirements file to trigger Python environment in Railpack
