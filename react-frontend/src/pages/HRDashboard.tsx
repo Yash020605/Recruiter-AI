@@ -37,7 +37,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
-  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics' | 'pipeline'>('candidates');
   const [candidateJourneys, setCandidateJourneys] = useState<Record<number, any[]>>({});
   const [diversityData, setDiversityData] = useState<any>(null);
   const [isDiversityLoading, setIsDiversityLoading] = useState(false);
@@ -1636,10 +1636,8 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                           <option value="Rejected">Rejected</option>
                         </select>
                         <button onClick={() => {
-                          setSelectedCandidateId(candidate.id);
-                          setCandidateDetails(null);
-                          setDetailLoading(true);
-                          setShowDetailsModal(true);
+                          setActiveTab('candidates');
+                          setExpandedId(candidate.id);
                         }} className="text-xs text-blue-400 hover:text-blue-300 hover:underline">
                           View
                         </button>
