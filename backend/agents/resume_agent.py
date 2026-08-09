@@ -41,5 +41,6 @@ def resume_agent_node(state: RecruiterState) -> RecruiterState:
         "current_ctc": details_res.get("current_ctc"),
         "expected_ctc": details_res.get("expected_ctc"),
         "notice_period": details_res.get("notice_period"),
-        "preferred_location": details_res.get("preferred_location")
+        "preferred_location": details_res.get("preferred_location"),
+        "relocation_willingness": details_res.get("relocation_willingness")
     }
