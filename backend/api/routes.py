@@ -15,7 +15,7 @@ from passlib.context import CryptContext
 import jwt
 
 from backend.config.settings import settings
-from backend.database.postgres import get_db
+from backend.database.database import get_db
 from backend.tools.candidate_database import user_repo, candidate_repo, comment_repo, journey_repo
 from backend.schemas.auth import Token
 from backend.database.models import UserRole, Candidate, Comment, JobMatch, CandidateJourney
@@ -492,7 +492,6 @@ def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
                     "expected_ctc": final_state.get("expected_ctc"),
                     "notice_period": final_state.get("notice_period"),
                     "preferred_location": final_state.get("preferred_location"),
-                    "relocation_willingness": final_state.get("relocation_willingness"),
                     "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
                     "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
                     "total_experience_years": total_exp,
@@ -572,7 +571,6 @@ class JobMatchResponse(BaseModel):
     missing_skills: List[str]
     extra_skills: List[str]
     summary: str
-    location_match: str
 
 @router.post("/job/match", response_model=JobMatchResponse, tags=["job"], dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))])
 def match_job_description(
@@ -601,8 +599,7 @@ def match_job_description(
                 "current_ctc": parsed_data.get("current_ctc"),
                 "expected_ctc": parsed_data.get("expected_ctc"),
                 "notice_period": parsed_data.get("notice_period"),
-                "preferred_location": parsed_data.get("preferred_location"),
-                "relocation_willingness": parsed_data.get("relocation_willingness")
+                "preferred_location": parsed_data.get("preferred_location")
             })
         except Exception as parse_err:
             logger.error(f"Error parsing resume on-the-fly for match: {parse_err}")
@@ -623,7 +620,6 @@ Return ONLY a valid JSON object with the following keys:
 - "experience": string describing experience required
 - "education": string describing education required
 - "certifications": array of strings of required/preferred certifications (or empty array)
-- "job_location": string or null
 
 Job Description:
 {jd}
@@ -648,23 +644,8 @@ Do not include any formatting other than the JSON block.
             "soft_skills": [],
             "experience": "Not specified",
             "education": "Not specified",
-            "certifications": [],
-             "job_location": None
+            "certifications": []
         }
-            # Regional preference and relocation check
-    job_location = jd_data.get("job_location")
-    candidate_location = candidate.preferred_location
-    relocation = candidate.relocation_willingness
-
-    if not job_location or not candidate_location:
-        location_match = "Not Specified"
-    elif job_location.strip().lower() == candidate_location.strip().lower():
-        location_match = "Location Match"
-    elif relocation and relocation.strip().lower() in ["yes", "willing", "open"]:
-        location_match = "Relocation Possible"
-    else:
-        location_match = "Location Mismatch"
-
 
     # 2. Compare extracted requirements with parsed candidate data
     try:
@@ -689,16 +670,7 @@ Do not include any formatting other than the JSON block.
         candidate_certifications = []
 
     match_prompt = PromptTemplate(
-        input_variables=[
-    "jd_requirements",
-    "candidate_skills",
-    "candidate_experience",
-    "candidate_education",
-    "candidate_projects",
-    "candidate_certifications",
-    "candidate_location",
-    "relocation"
-],
+        input_variables=["jd_requirements", "candidate_skills", "candidate_experience", "candidate_education", "candidate_projects", "candidate_certifications"],
         template="""You are an expert recruiter matching a candidate's resume details against a Job Description's extracted requirements.
 
 Extracted Job Requirements:
@@ -711,16 +683,14 @@ Candidate Resume Details:
 - Projects: {candidate_projects}
 - Certifications: {candidate_certifications}
 
-
 Please analyze the candidate against the requirements and provide the following:
 1. "matched_skills": A list of skills/keywords from the job description that the candidate HAS.
 2. "missing_skills": A list of skills/keywords from the job description that the candidate DOES NOT have.
 3. "extra_skills": A list of skills/certifications the candidate has that are NOT in the job description but are valuable.
 4. "match_score": An overall match percentage (0 to 100) based on how well the candidate's skills, experience, education, and certifications align with the job description.
 5. "summary": A short AI summary (2-3 sentences) explaining why the candidate is or is not a good match.
-6. "location_match": Use "Location Match","Relocation Possible", "Location Mismatch",or "Not Specified" based on the candidate's preferred location and relocation willingness.
 
-Return ONLY a valid JSON object with the keys: "match_score" (number), "matched_skills" (array of strings), "missing_skills" (array of strings), "extra_skills" (array of strings), "summary" (string), and "location_match" (string).
+Return ONLY a valid JSON object with the keys: "match_score" (number), "matched_skills" (array of strings), "missing_skills" (array of strings), "extra_skills" (array of strings), and "summary" (string).
 Do not include any formatting other than the JSON block.
 """
     )
@@ -733,9 +703,7 @@ Do not include any formatting other than the JSON block.
             "candidate_experience": json.dumps(candidate_experience),
             "candidate_education": json.dumps(candidate_education),
             "candidate_projects": json.dumps(candidate_projects),
-            "candidate_certifications": json.dumps(candidate_certifications),
-            "candidate_location": candidate.preferred_location,
-            "relocation": candidate.relocation_willingness
+            "candidate_certifications": json.dumps(candidate_certifications)
         })
         content = match_res.content.strip()
         if content.startswith("```json"):
@@ -758,7 +726,6 @@ Do not include any formatting other than the JSON block.
             "matched_skills": matched,
             "missing_skills": missing,
             "extra_skills": extra,
-            "location_match": location_match,
             "summary": "Match computed using fallback keyword overlap logic due to LLM match error."
         }
 
@@ -781,8 +748,7 @@ Do not include any formatting other than the JSON block.
         matched_skills=json.loads(new_match.matched_skills),
         missing_skills=json.loads(new_match.missing_skills),
         extra_skills=json.loads(new_match.extra_skills),
-        summary=new_match.summary,
-        location_match=result.get("location_match", "Not Specified")
+        summary=new_match.summary
     )
 
 # --- Recruitment Workflow Endpoint ---
@@ -869,7 +835,6 @@ def execute_recruitment_workflow(
             "expected_ctc": resume_data.get("expected_ctc"),
             "notice_period": resume_data.get("notice_period"),
             "preferred_location": resume_data.get("preferred_location"),
-            "relocation_willingness": resume_data.get("relocation_willingness"),
             "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
             "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
             "total_experience_years": total_exp,

@@ -1,7 +1,7 @@
 import json
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
-from backend.database.postgres import engine, Base, SessionLocal
+from backend.database.database import engine, Base, SessionLocal
 from backend.database.models import Candidate, CandidateJourney
 
 def run_migrations():
@@ -13,11 +13,10 @@ def run_migrations():
     columns = [col["name"] for col in inspector.get_columns("candidates")]
     
     new_cols = {
-    "gender": "VARCHAR",
-    "total_experience_years": "FLOAT",
-    "highest_education_level": "VARCHAR",
-    "relocation_willingness": "VARCHAR"
-}
+        "gender": "VARCHAR",
+        "total_experience_years": "FLOAT",
+        "highest_education_level": "VARCHAR"
+    }
     
     with engine.begin() as conn:
         for col_name, col_type in new_cols.items():
