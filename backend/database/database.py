@@ -5,13 +5,19 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from backend.config.settings import settings
 
+db_url = settings.DATABASE_URL
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+elif not db_url:
+    db_url = "sqlite:///./recruiter.db"
+
 connect_args = {}
 # Use SQLite specific connect_args to avoid threading issues
-if settings.DATABASE_URL.startswith("sqlite"):
+if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    db_url,
     connect_args=connect_args,
     pool_pre_ping=True
 )
