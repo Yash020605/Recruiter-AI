@@ -871,6 +871,12 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
         >
           D&I Analytics
         </button>
+        <button 
+          onClick={() => setActiveTab('pipeline')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'pipeline' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          Pipeline
+        </button>
       </div>
 
       {activeTab === 'candidates' ? (
@@ -1241,7 +1247,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                                 {c.hackerearth_assessment_url ? (
                                   <div className="text-xs text-green-400 flex items-center font-mono bg-green-500/10 p-2 rounded"><CheckCircle className="w-3 h-3 mr-1"/> Sent. Score: {c.hackerearth_score !== null ? `${c.hackerearth_score}%` : 'Pending'}</div>
                                 ) : (
-                                  <button onClick={() => handleIntegration(c.id, 'hackerearth/invite')} disabled={role === 'hiring_manager'} className="text-xs bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 py-2 px-3 rounded w-full transition font-medium">Send Test</button>
+                                  <button onClick={() => handleIntegration(c.id, 'hackerearth/invite')} disabled={role === 'hiring_manager'} className="text-xs bg-purple-500/20 hover:bg-purple-400/40 text-purple-300 py-2 px-3 rounded w-full transition font-medium">Send Test</button>
                                 )}
                               </div>
                               <div className="bg-white/5 p-4 rounded-lg border border-white/10 shadow-sm">
@@ -1577,7 +1583,80 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             )}
           </div>
         </div>
-    ) : (
+    ) : activeTab === 'pipeline' ? (
+        <div className="animate-in fade-in duration-300">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Candidate Pipeline</h2>
+            <div className="text-sm text-gray-400">Drag to change status (mock) or use candidate actions</div>
+          </div>
+          
+          <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-250px)]">
+            {['New', 'Screening', 'Shortlisted', 'Interview Scheduled', 'Offer Sent', 'Hired', 'Rejected'].map(stage => (
+              <div key={stage} className="glass-card flex-shrink-0 w-80 flex flex-col p-4 bg-gray-900/50">
+                <div className="flex justify-between items-center mb-4 border-b border-gray-700/50 pb-2">
+                  <h3 className="font-semibold text-gray-200">{stage}</h3>
+                  <span className="bg-gray-800 text-xs px-2 py-1 rounded-full text-gray-400">
+                    {candidates.filter(c => c.status === stage).length}
+                  </span>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                  {candidates.filter(c => c.status === stage).map(candidate => (
+                    <div key={candidate.id} className="glass-card p-3 bg-gray-800/40 hover:bg-gray-800/80 transition-colors cursor-pointer group">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm text-blue-100">{candidate.name}</h4>
+                        {candidate.match_score !== null && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${candidate.match_score >= 70 ? 'bg-green-500/20 text-green-400' : candidate.match_score >= 40 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {candidate.match_score}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2 truncate">
+                        {candidate.email}
+                      </div>
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-700/30">
+                        <select 
+                          className="text-xs bg-gray-900 border border-gray-700 rounded p-1 text-gray-300 focus:outline-none focus:border-blue-500"
+                          value={candidate.status}
+                          onChange={async (e) => {
+                            try {
+                              await api.put(`/candidates/${candidate.id}/journey/status`, { status: e.target.value });
+                              fetchCandidates();
+                            } catch (error) {
+                              console.error('Failed to update status', error);
+                            }
+                          }}
+                        >
+                          <option value="New">New</option>
+                          <option value="Screening">Screening</option>
+                          <option value="Shortlisted">Shortlisted</option>
+                          <option value="Interview Scheduled">Interview Scheduled</option>
+                          <option value="Offer Sent">Offer Sent</option>
+                          <option value="Hired">Hired</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                        <button onClick={() => {
+                          setSelectedCandidateId(candidate.id);
+                          setCandidateDetails(null);
+                          setDetailLoading(true);
+                          setShowDetailsModal(true);
+                        }} className="text-xs text-blue-400 hover:text-blue-300 hover:underline">
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {candidates.filter(c => c.status === stage).length === 0 && (
+                    <div className="text-center text-xs text-gray-500 py-8 border-2 border-dashed border-gray-800 rounded-lg">
+                      No candidates
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
         <div className="space-y-8 animate-in fade-in duration-300">
           <div className="glass-card p-6">
             <h2 className="text-2xl font-bold mb-6 flex items-center text-blue-400 border-b border-white/10 pb-4">
