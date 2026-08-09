@@ -9,8 +9,11 @@ class CandidateBase(BaseModel):
     status: Optional[str] = Field(default="New", description="Candidate Status")
     current_company: Optional[str] = Field(default=None, description="Current Company")
     current_ctc: Optional[str] = Field(default=None, description="Current CTC")
+    current_ctc_lpa: Optional[float] = Field(default=None, description="Current CTC normalized to annual LPA")
     expected_ctc: Optional[str] = Field(default=None, description="Expected CTC")
+    expected_ctc_lpa: Optional[float] = Field(default=None, description="Expected CTC normalized to annual LPA")
     notice_period: Optional[str] = Field(default=None, description="Notice Period")
+    notice_period_days: Optional[int] = Field(default=None, description="Notice period normalized to days")
     preferred_location: Optional[str] = Field(default=None, description="Preferred Location")
     employment_type: Optional[str] = Field(default=None, description="Employment Type")
     immediate_joiner: Optional[str] = Field(default=None, description="Immediate Joiner")
@@ -86,4 +89,3 @@ class CommentResponse(CommentBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-

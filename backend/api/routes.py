@@ -435,6 +435,31 @@ class AnalyzeResponse(BaseModel):
     status: str
     message: str
 
+def _recruitment_fields(extracted: dict) -> dict:
+    """Build a dict of recruitment fields, only including non-None values.
+
+    This prevents overwriting existing candidate data with None for fields
+    that could not be extracted from the resume.
+    """
+    recruitment_keys = [
+        "current_company",
+        "current_ctc",
+        "current_ctc_lpa",
+        "expected_ctc",
+        "expected_ctc_lpa",
+        "notice_period",
+        "notice_period_days",
+        "immediate_joiner",
+        "preferred_location",
+        "employment_type",
+    ]
+    return {
+        key: value
+        for key, value in extracted.items()
+        if key in recruitment_keys and value is not None
+    }
+
+
 def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
     logger.info(f"Starting LangGraph pipeline for candidate {candidate_id}")
     initial_state = {
@@ -487,15 +512,11 @@ def run_analysis_pipeline(candidate_id: int, resume_path: str, jd: str):
                     "missing_skills": json.dumps(final_state.get("missing_skills", [])),
                     "match_score": final_state.get("match_score", 0.0),
                     "recommendation": final_state.get("recommendation", ""),
-                    "current_company": final_state.get("current_company"),
-                    "current_ctc": final_state.get("current_ctc"),
-                    "expected_ctc": final_state.get("expected_ctc"),
-                    "notice_period": final_state.get("notice_period"),
-                    "preferred_location": final_state.get("preferred_location"),
                     "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
                     "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
                     "total_experience_years": total_exp,
-                    "highest_education_level": highest_edu
+                    "highest_education_level": highest_edu,
+                    **_recruitment_fields(final_state)
                 })
                 
                 # Log journey events
@@ -595,11 +616,7 @@ def match_job_description(
                 "education": json.dumps(parsed_data.get("education", [])),
                 "projects": json.dumps(parsed_data.get("projects", [])),
                 "certifications": json.dumps(parsed_data.get("certifications", [])),
-                "current_company": parsed_data.get("current_company"),
-                "current_ctc": parsed_data.get("current_ctc"),
-                "expected_ctc": parsed_data.get("expected_ctc"),
-                "notice_period": parsed_data.get("notice_period"),
-                "preferred_location": parsed_data.get("preferred_location")
+                **_recruitment_fields(parsed_data)
             })
         except Exception as parse_err:
             logger.error(f"Error parsing resume on-the-fly for match: {parse_err}")
@@ -830,11 +847,7 @@ def execute_recruitment_workflow(
             "match_score": final_state.get("match_score", 0.0),
             "score_breakdown": report.get("score_breakdown", "{}"),
             "recommendation": final_state.get("recommendation", ""),
-            "current_company": resume_data.get("current_company"),
-            "current_ctc": resume_data.get("current_ctc"),
-            "expected_ctc": resume_data.get("expected_ctc"),
-            "notice_period": resume_data.get("notice_period"),
-            "preferred_location": resume_data.get("preferred_location"),
+            **_recruitment_fields(resume_data),
             "status": "Shortlisted" if final_state.get("match_score", 0.0) >= 70 else ("Screening" if final_state.get("match_score", 0.0) >= 50 else "Rejected"),
             "gender": getattr(candidate, "gender", None) or random.choice(["Male", "Female", "Non-binary"]),
             "total_experience_years": total_exp,

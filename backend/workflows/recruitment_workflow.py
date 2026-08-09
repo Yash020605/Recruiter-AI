@@ -61,8 +61,12 @@ def resume_extraction_node(state: RecruitmentState) -> dict:
         "certifications": proj_res.get("certifications", []),
         "current_company": details_res.get("current_company"),
         "current_ctc": details_res.get("current_ctc"),
+        "current_ctc_lpa": details_res.get("current_ctc_lpa"),
         "expected_ctc": details_res.get("expected_ctc"),
+        "expected_ctc_lpa": details_res.get("expected_ctc_lpa"),
         "notice_period": details_res.get("notice_period"),
+        "notice_period_days": details_res.get("notice_period_days"),
+        "immediate_joiner": details_res.get("immediate_joiner"),
         "preferred_location": details_res.get("preferred_location")
     }
     

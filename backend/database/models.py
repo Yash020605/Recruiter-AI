@@ -47,6 +47,17 @@ class Candidate(Base):
     preferred_location = Column(String, nullable=True)
     employment_type = Column(String, nullable=True)
     immediate_joiner = Column(String, nullable=True)
+
+    # Normalized Recruitment Fields
+    current_ctc_lpa = Column(Float, nullable=True)
+    expected_ctc_lpa = Column(Float, nullable=True)
+    notice_period_days = Column(Integer, nullable=True)
+
+    # Indian Education Details
+    degree = Column(String, nullable=True)
+    specialization = Column(String, nullable=True)
+    college_name = Column(String, nullable=True)
+    college_tier = Column(String, nullable=True)
     
     skills = Column(Text, nullable=True)
     education = Column(Text, nullable=True)
