@@ -95,6 +95,7 @@ Return ONLY a valid JSON object with the following keys, setting the value to nu
 - "expected_ctc": string or null
 - "notice_period": string or null (e.g. "30 days", "Immediate")
 - "preferred_location": string or null
+- "relocation_willingness": string or null (e.g. "Yes", "No", "Not Specified")
 
 Resume: {text}
 """
@@ -121,7 +122,8 @@ Resume: {text}
         "current_ctc": data.get("current_ctc"),
         "expected_ctc": data.get("expected_ctc"),
         "notice_period": data.get("notice_period"),
-        "preferred_location": data.get("preferred_location")
+        "preferred_location": data.get("preferred_location"),
+        "relocation_willingness": data.get("relocation_willingness")
     }
 
 def extract_projects_and_certs_node(state: RecruiterState) -> dict:
