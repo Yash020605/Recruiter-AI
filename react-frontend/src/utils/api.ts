@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-production-9983.up.railway.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-backend-production-1c27.up.railway.app';
 
 const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
