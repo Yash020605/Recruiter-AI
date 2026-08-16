@@ -1,15 +1,12 @@
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from backend.config.settings import settings
 
-primary_llm = ChatOpenAI(temperature=0.7, model_name="gpt-4o-mini", api_key=settings.OPENAI_API_KEY)
-fallback_llm = ChatOpenAI(
-    temperature=0.7, 
-    model_name="nvidia/nemotron-3-ultra-550b-a55b", 
-    api_key=settings.NVIDIA_API_KEY, 
-    base_url="https://integrate.api.nvidia.com/v1"
+llm = ChatGoogleGenerativeAI(
+    google_api_key=settings.GEMINI_API_KEY,
+    model="gemini-1.5-flash",
+    temperature=0.7
 )
-llm = primary_llm.with_fallbacks([fallback_llm])
 
 def generate_communication_template(candidate_data: dict, email_type: str) -> str:
     """

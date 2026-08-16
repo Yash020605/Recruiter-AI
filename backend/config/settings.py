@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # OpenAI (for LangGraph)
     OPENAI_API_KEY: str = Field(default="")
     
+    # Google Gemini
+    GEMINI_API_KEY: str = Field(default="")
+    
     # NVIDIA Nemotron Fallback
     NVIDIA_API_KEY: str = Field(default="")
     
