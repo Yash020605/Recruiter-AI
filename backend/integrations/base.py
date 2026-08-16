@@ -1,7 +1,7 @@
 import httpx
 from typing import Callable, Any
 import functools
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, retry_if_exception
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -50,6 +50,6 @@ def async_retry():
     return retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(IntegrationException) & ~retry_if_exception_type(AuthException),
+        retry=retry_if_exception_type(IntegrationException) & retry_if_exception(lambda e: not isinstance(e, AuthException)),
         reraise=True
     )
