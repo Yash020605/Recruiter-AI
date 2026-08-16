@@ -15,3 +15,13 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
+
+// --- Added Collaboration & Verification API Helpers ---
+export const addCandidateComment = (candidateId: number, content: string) => 
+  api.post(`/candidates/${candidateId}/comments`, { content });
+
+export const getCandidateComments = (candidateId: number) => 
+  api.get(`/candidates/${candidateId}/comments`);
+
+export const triggerReferenceCheck = (candidateId: number, refereeEmail: string) =>
+  api.post(`/candidates/${candidateId}/reference-check`, { referee_email: refereeEmail });

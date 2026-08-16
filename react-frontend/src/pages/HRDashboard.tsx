@@ -1,7 +1,7 @@
 import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
 import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail } from 'lucide-react';
-import api from '../utils/api';
+import api, { addCandidateComment, getCandidateComments, triggerReferenceCheck } from '../utils/api';
 
 interface Props {
   onLogout: () => void;
@@ -123,6 +123,31 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [noticeFilter, setNoticeFilter] = useState("");
   const [recFilter, setRecFilter] = useState("");
   const [sortBy, setSortBy] = useState("");
+
+  // --- Collaboration & Verification States & Handlers ---
+  const [comments, setComments] = useState<any[]>([]);
+  const [refereeEmail, setRefereeEmail] = useState("");
+
+  const fetchComments = async (candidateId: number) => {
+    try {
+      const res = await getCandidateComments(candidateId);
+      setComments(res.data);
+    } catch (err) {
+      console.error("Failed to fetch comments", err);
+    }
+  };
+
+  const handleTriggerRefCheck = async (candidateId: number) => {
+    if (!refereeEmail.trim()) return;
+    try {
+      await triggerReferenceCheck(candidateId, refereeEmail);
+      alert("Automated reference check initiated!");
+      setRefereeEmail("");
+    } catch (err) {
+      console.error("Failed to trigger reference check", err);
+    }
+  };
+
 
   const fetchAnalytics = async () => {
     try {
@@ -545,54 +570,76 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             <h3 className="text-2xl font-bold mb-6">Edit Candidate Details</h3>
             
             <form onSubmit={handleSaveCandidate} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Name</label>
-                  <input type="text" required value={editCandidate.name || ""} onChange={(e) => setEditCandidate({...editCandidate, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Current Company</label>
-                  <input type="text" value={editCandidate.current_company || ""} onChange={(e) => setEditCandidate({...editCandidate, current_company: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Current CTC</label>
-                  <input type="text" value={editCandidate.current_ctc || ""} onChange={(e) => setEditCandidate({...editCandidate, current_ctc: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Expected CTC</label>
-                  <input type="text" value={editCandidate.expected_ctc || ""} onChange={(e) => setEditCandidate({...editCandidate, expected_ctc: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Notice Period</label>
-                  <input type="text" value={editCandidate.notice_period || ""} onChange={(e) => setEditCandidate({...editCandidate, notice_period: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Preferred Location</label>
-                  <input type="text" value={editCandidate.preferred_location || ""} onChange={(e) => setEditCandidate({...editCandidate, preferred_location: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Employment Type</label>
-                  <select value={editCandidate.employment_type || ""} onChange={(e) => setEditCandidate({...editCandidate, employment_type: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500">
-                    <option value="">Select Type</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Internship">Internship</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Immediate Joiner</label>
-                  <select value={editCandidate.immediate_joiner || ""} onChange={(e) => setEditCandidate({...editCandidate, immediate_joiner: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500">
-                    <option value="">Select Option</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-4 border-t border-white/10 pt-4">
-                <button type="button" onClick={() => setEditCandidate(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition-colors">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm transition-colors text-white font-medium">Save Details</button>
-              </div>
-            </form>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Name</label>
+      <input type="text" required value={editCandidate.name || ""} onChange={(e) => setEditCandidate({...editCandidate, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Current Company</label>
+      <input type="text" value={editCandidate.current_company || ""} onChange={(e) => setEditCandidate({...editCandidate, current_company: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Current CTC</label>
+      <input type="text" value={editCandidate.current_ctc || ""} onChange={(e) => setEditCandidate({...editCandidate, current_ctc: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Expected CTC</label>
+      <input type="text" value={editCandidate.expected_ctc || ""} onChange={(e) => setEditCandidate({...editCandidate, expected_ctc: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Notice Period</label>
+      <input type="text" value={editCandidate.notice_period || ""} onChange={(e) => setEditCandidate({...editCandidate, notice_period: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Preferred Location</label>
+      <input type="text" value={editCandidate.preferred_location || ""} onChange={(e) => setEditCandidate({...editCandidate, preferred_location: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Employment Type</label>
+      <select value={editCandidate.employment_type || ""} onChange={(e) => setEditCandidate({...editCandidate, employment_type: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500">
+        <option value="">Select Type</option>
+        <option value="Full-time">Full-time</option>
+        <option value="Contract">Contract</option>
+        <option value="Internship">Internship</option>
+      </select>
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Immediate Joiner</label>
+      <select value={editCandidate.immediate_joiner || ""} onChange={(e) => setEditCandidate({...editCandidate, immediate_joiner: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500">
+        <option value="">Select Option</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+  </div>
+
+  {/* --- Automated Reference Check Section --- */}
+  <div className="mt-6 border-t border-white/10 pt-4">
+    <label className="block text-sm font-medium text-gray-400 mb-2">Automated Reference Verification</label>
+    <div className="flex gap-2">
+      <input
+        type="email"
+        placeholder="Enter referee email..."
+        className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm focus:outline-none focus:border-blue-500"
+        value={refereeEmail}
+        onChange={(e) => setRefereeEmail(e.target.value)}
+      />
+      <button
+        type="button"
+        onClick={() => editCandidate?.id && handleTriggerRefCheck(editCandidate.id)}
+        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm transition-colors text-white font-medium whitespace-nowrap"
+      >
+        Send Request
+      </button>
+    </div>
+  </div>
+
+  <div className="mt-8 flex justify-end gap-4 border-t border-white/10 pt-4">
+    <button type="button" onClick={() => setEditCandidate(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition-colors">Cancel</button>
+    <button type="submit" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm transition-colors text-white font-medium">Save Details</button>
+  </div>
+</form>
           </div>
         </div>
       )}
