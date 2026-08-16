@@ -77,6 +77,10 @@ class Candidate(Base):
     gender = Column(String, nullable=True)
     total_experience_years = Column(Float, nullable=True)
     highest_education_level = Column(String, nullable=True)
+    
+    # Predictive Analytics
+    hiring_success_probability = Column(Float, nullable=True)
+    predicted_retention_months = Column(Integer, nullable=True)
 
     # Relationships
     comments = relationship("Comment", back_populates="candidate", cascade="all, delete-orphan")

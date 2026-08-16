@@ -1039,11 +1039,25 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      {c.match_score !== null && (
-                        <div className="text-right">
-                          <div className="text-xl font-black text-blue-400">{c.match_score}%</div>
-                        </div>
-                      )}
+                      <div className="flex gap-4 items-center mr-4">
+                        {c.hiring_success_probability != null && (
+                           <div className="text-right text-xs bg-teal-500/10 px-2 py-1 rounded">
+                             <div className="text-teal-400/70 uppercase text-[10px] tracking-wider font-bold">Success</div>
+                             <div className="font-bold text-teal-400 text-sm">{c.hiring_success_probability}%</div>
+                           </div>
+                        )}
+                        {c.predicted_retention_months != null && (
+                           <div className="text-right text-xs bg-indigo-500/10 px-2 py-1 rounded">
+                             <div className="text-indigo-400/70 uppercase text-[10px] tracking-wider font-bold">Retention</div>
+                             <div className="font-bold text-indigo-400 text-sm">{c.predicted_retention_months}mo</div>
+                           </div>
+                        )}
+                        {c.match_score !== null && (
+                          <div className="text-right">
+                            <div className="text-xl font-black text-blue-400 leading-none">{c.match_score}%</div>
+                          </div>
+                        )}
+                      </div>
                       
                       {role !== 'hiring_manager' && (
                         <div className="flex gap-2">
@@ -1615,6 +1629,20 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                       <div className="text-xs text-gray-400 mb-2 truncate">
                         {candidate.email}
                       </div>
+                      {(candidate.hiring_success_probability != null || candidate.predicted_retention_months != null) && (
+                        <div className="flex gap-2 mb-2">
+                          {candidate.hiring_success_probability != null && (
+                            <span className="text-[10px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded" title="Success Probability">
+                              S: {candidate.hiring_success_probability}%
+                            </span>
+                          )}
+                          {candidate.predicted_retention_months != null && (
+                            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded" title="Predicted Retention">
+                              R: {candidate.predicted_retention_months}m
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-700/30">
                         <select 
                           className="text-xs bg-gray-900 border border-gray-700 rounded p-1 text-gray-300 focus:outline-none focus:border-blue-500"

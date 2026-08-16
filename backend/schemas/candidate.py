@@ -38,6 +38,10 @@ class CandidateBase(BaseModel):
     total_experience_years: Optional[float] = Field(default=None, description="Total experience in years")
     highest_education_level: Optional[str] = Field(default=None, description="Highest level of education")
 
+    # Predictive Analytics
+    hiring_success_probability: Optional[float] = Field(default=None, description="Probability of hiring success (0-100)")
+    predicted_retention_months: Optional[int] = Field(default=None, description="Predicted retention in months")
+
 class CandidateCreate(CandidateBase):
     pass
 

@@ -18,6 +18,7 @@ from backend.config.settings import settings
 from backend.database.database import get_db
 from backend.tools.candidate_database import user_repo, candidate_repo, comment_repo, journey_repo
 from backend.schemas.auth import Token
+from backend.services.predictive_analytics import calculate_predictive_analytics
 from backend.database.models import UserRole, Candidate, Comment, JobMatch, CandidateJourney, Interview
 from backend.schemas.candidate import CandidateResponse, CommentCreate, CommentResponse, JourneyCreate, JourneyUpdate, JourneyResponse
 from backend.schemas.admin import UserCreate, UserUpdate, UserResponse
@@ -845,6 +846,10 @@ def execute_recruitment_workflow(
             "total_experience_years": total_exp,
             "highest_education_level": highest_edu
         })
+        
+        # Calculate Predictive Analytics
+        calculate_predictive_analytics(candidate)
+        db.add(candidate)
         
         # Log journey events
         db.add(CandidateJourney(
