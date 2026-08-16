@@ -17,8 +17,8 @@ api.interceptors.request.use((config) => {
 export default api;
 
 // --- Added Collaboration & Verification API Helpers ---
-export const addCandidateComment = (candidateId: number, content: string) => 
-  api.post(`/candidates/${candidateId}/comments`, { content });
+export const addCandidateComment = (candidateId: number, content: string) =>
+  api.post(`/candidates/${candidateId}/comments`, { text: content });
 
 export const getCandidateComments = (candidateId: number) => 
   api.get(`/candidates/${candidateId}/comments`);

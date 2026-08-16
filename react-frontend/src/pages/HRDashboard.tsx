@@ -1,7 +1,7 @@
 import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
 import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail } from 'lucide-react';
-import api, { triggerReferenceCheck } from '../utils/api';
+import api, { triggerReferenceCheck, addCandidateComment, getCandidateComments } from '../utils/api';
 
 interface Props {
   onLogout: () => void;
@@ -395,10 +395,10 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const handleAddComment = async (id: number) => {
     if (!newCommentText.trim()) return;
     try {
-      await api.post(`/candidates/${id}/comments`, { text: newCommentText });
+      await addCandidateComment(id, newCommentText);
       setNewCommentText("");
-      const res = await api.get(`/candidates/${id}/comments`);
-      setCandidateComments(prev => ({...prev, [id]: res.data}));
+      const res = await getCandidateComments(id);
+      setCandidateComments(prev => ({ ...prev, [id]: res.data }));
     } catch (e) {
       alert("Failed to add comment");
     }
