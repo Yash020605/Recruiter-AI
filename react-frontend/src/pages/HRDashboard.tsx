@@ -1,7 +1,7 @@
 import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
 import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail } from 'lucide-react';
-import api, { addCandidateComment, getCandidateComments, triggerReferenceCheck } from '../utils/api';
+import api, { triggerReferenceCheck } from '../utils/api';
 
 interface Props {
   onLogout: () => void;
@@ -125,17 +125,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [sortBy, setSortBy] = useState("");
 
   // --- Collaboration & Verification States & Handlers ---
-  const [comments, setComments] = useState<any[]>([]);
   const [refereeEmail, setRefereeEmail] = useState("");
-
-  const fetchComments = async (candidateId: number) => {
-    try {
-      const res = await getCandidateComments(candidateId);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Failed to fetch comments", err);
-    }
-  };
 
   const handleTriggerRefCheck = async (candidateId: number) => {
     if (!refereeEmail.trim()) return;
