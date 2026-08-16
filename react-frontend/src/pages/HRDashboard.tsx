@@ -37,10 +37,35 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
   const [workflowRunningId, setWorkflowRunningId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0);
-  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'matching' | 'analytics' | 'sourcing' | 'lifecycle'>('candidates');
   const [candidateJourneys, setCandidateJourneys] = useState<Record<number, any[]>>({});
   const [diversityData, setDiversityData] = useState<any>(null);
   const [isDiversityLoading, setIsDiversityLoading] = useState(false);
+
+  // Candidate Sourcing State
+  const [sourcedCandidates, setSourcedCandidates] = useState<any[]>([]);
+  const [sourcingFilter, setSourcingFilter] = useState({ platform: '', skills: '', location: '', stage: '', search: '' });
+  const [showAddSourcedModal, setShowAddSourcedModal] = useState(false);
+  const [newSourced, setNewSourced] = useState({
+    name: '', email: '', phone: '', current_company: '', preferred_location: '',
+    skills: '', experience: '', education: '', source_platform: 'LinkedIn',
+    source_url: '', github_username: '', initial_notes: ''
+  });
+  const [rankJdText, setRankJdText] = useState('');
+  const [rankingId, setRankingId] = useState<number | null>(null);
+
+  // Lifecycle State
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [interviews, setInterviews] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [onboardings, setOnboardings] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [newJob, setNewJob] = useState({ title: '', department: '', location: '', description: '', requirements: '' });
+  const [showScheduleInterviewModal, setShowScheduleInterviewModal] = useState(false);
+  const [newInterview, setNewInterview] = useState({ candidate_id: 0, interviewer: '', scheduled_at: '', interview_type: 'Technical', meeting_link: '' });
+  const [showCreateOfferModal, setShowCreateOfferModal] = useState(false);
+  const [newOffer, setNewOffer] = useState({ candidate_id: 0, salary: 120000, currency: 'USD', status: 'Sent' });
 
   const fetchJourney = async (id: number) => {
     try {
@@ -77,11 +102,147 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
     }
   };
 
+  const fetchSourcedCandidates = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (sourcingFilter.platform) params.append('source_platform', sourcingFilter.platform);
+      if (sourcingFilter.skills) params.append('skills', sourcingFilter.skills);
+      if (sourcingFilter.location) params.append('location', sourcingFilter.location);
+      if (sourcingFilter.stage) params.append('stage', sourcingFilter.stage);
+      if (sourcingFilter.search) params.append('search', sourcingFilter.search);
+      const res = await api.get(`/sourcing/candidates?${params.toString()}`);
+      setSourcedCandidates(res.data);
+    } catch (e) {
+      console.error("Failed to fetch sourced candidates", e);
+    }
+  };
+
+  const fetchLifecycleData = async () => {
+    try {
+      const [jobsRes, intRes, offerRes, onboardRes, logsRes] = await Promise.all([
+        api.get('/jobs'),
+        api.get('/interviews'),
+        api.get('/offers'),
+        api.get('/onboarding'),
+        api.get('/activity-logs')
+      ]);
+      setJobs(jobsRes.data);
+      setInterviews(intRes.data);
+      setOffers(offerRes.data);
+      setOnboardings(onboardRes.data);
+      setActivityLogs(logsRes.data);
+    } catch (e) {
+      console.error("Failed to fetch lifecycle data", e);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'analytics') {
       fetchDiversityAnalytics();
+    } else if (activeTab === 'sourcing') {
+      fetchSourcedCandidates();
+    } else if (activeTab === 'lifecycle') {
+      fetchLifecycleData();
     }
-  }, [activeTab]);
+  }, [activeTab, sourcingFilter]);
+
+  const handleAddSourced = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload: any = {
+        name: newSourced.name,
+        email: newSourced.email || undefined,
+        phone: newSourced.phone || undefined,
+        current_company: newSourced.current_company || undefined,
+        preferred_location: newSourced.preferred_location || undefined,
+        skills: newSourced.skills || undefined,
+        experience: newSourced.experience || undefined,
+        education: newSourced.education || undefined,
+        source_platform: newSourced.source_platform,
+        source_url: newSourced.source_url || undefined,
+        initial_notes: newSourced.initial_notes || undefined,
+      };
+
+      if (newSourced.github_username) {
+        payload.social_profiles = [{
+          platform: 'GitHub',
+          profile_url: `https://github.com/${newSourced.github_username}`,
+          username: newSourced.github_username
+        }];
+      }
+
+      await api.post('/sourcing/candidates', payload);
+      setShowAddSourcedModal(false);
+      setNewSourced({
+        name: '', email: '', phone: '', current_company: '', preferred_location: '',
+        skills: '', experience: '', education: '', source_platform: 'LinkedIn',
+        source_url: '', github_username: '', initial_notes: ''
+      });
+      fetchSourcedCandidates();
+    } catch (e) {
+      alert("Failed to add sourced candidate");
+    }
+  };
+
+  const handlePipelineMove = async (candidateId: number, stage: string) => {
+    try {
+      await api.put(`/sourcing/candidates/${candidateId}/pipeline`, { stage });
+      fetchSourcedCandidates();
+    } catch (e) {
+      alert("Failed to move pipeline stage");
+    }
+  };
+
+  const handleRankSourced = async (candidateId: number) => {
+    if (!rankJdText.trim()) {
+      alert("Please enter a Job Description in the ranking input field first.");
+      return;
+    }
+    setRankingId(candidateId);
+    try {
+      await api.post(`/sourcing/candidates/${candidateId}/rank`, { job_description: rankJdText });
+      fetchSourcedCandidates();
+      alert("Candidate AI Rank updated!");
+    } catch (e) {
+      alert("Failed to rank candidate");
+    } finally {
+      setRankingId(null);
+    }
+  };
+
+  const handleCreateJobSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/jobs', newJob);
+      setShowCreateJobModal(false);
+      setNewJob({ title: '', department: '', location: '', description: '', requirements: '' });
+      fetchLifecycleData();
+    } catch (e) {
+      alert("Failed to create job");
+    }
+  };
+
+  const handleScheduleInterviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/interviews', newInterview);
+      setShowScheduleInterviewModal(false);
+      fetchLifecycleData();
+    } catch (e) {
+      alert("Failed to schedule interview");
+    }
+  };
+
+  const handleCreateOfferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/offers', newOffer);
+      setShowCreateOfferModal(false);
+      fetchLifecycleData();
+    } catch (e) {
+      alert("Failed to create offer");
+    }
+  };
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
   const [matchingJd, setMatchingJd] = useState("");
   const [matchingResult, setMatchingResult] = useState<any | null>(null);
@@ -824,7 +985,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-white/10 mb-8 space-x-6">
+      <div className="flex border-b border-white/10 mb-8 space-x-6 overflow-x-auto">
         <button 
           onClick={() => setActiveTab('candidates')} 
           className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'candidates' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
@@ -842,6 +1003,18 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
           className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'analytics' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
         >
           D&I Analytics
+        </button>
+        <button 
+          onClick={() => setActiveTab('sourcing')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'sourcing' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          Candidate Sourcing
+        </button>
+        <button 
+          onClick={() => setActiveTab('lifecycle')} 
+          className={`pb-4 px-2 text-lg font-medium transition-colors relative ${activeTab === 'lifecycle' ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+          Recruitment Lifecycle
         </button>
       </div>
 
@@ -1599,7 +1772,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             )}
           </div>
         </div>
-    ) : (
+      ) : activeTab === 'analytics' ? (
         <div className="space-y-8 animate-in fade-in duration-300">
           <div className="glass-card p-6">
             <h2 className="text-2xl font-bold mb-6 flex items-center text-blue-400 border-b border-white/10 pb-4">
@@ -1761,6 +1934,502 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      ) : activeTab === 'sourcing' ? (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Sourcing Modal */}
+          {showAddSourcedModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+              <div className="bg-gray-900 border border-white/10 p-8 rounded-2xl max-w-2xl w-full shadow-2xl relative my-auto">
+                <button onClick={() => setShowAddSourcedModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                  <UserPlus className="text-blue-400" /> Add Sourced Candidate
+                </h3>
+                <form onSubmit={handleAddSourced} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Full Name *</label>
+                      <input type="text" required value={newSourced.name} onChange={e => setNewSourced({...newSourced, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Email</label>
+                      <input type="email" value={newSourced.email} onChange={e => setNewSourced({...newSourced, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Phone</label>
+                      <input type="text" value={newSourced.phone} onChange={e => setNewSourced({...newSourced, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Current Company</label>
+                      <input type="text" value={newSourced.current_company} onChange={e => setNewSourced({...newSourced, current_company: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Preferred Location</label>
+                      <input type="text" value={newSourced.preferred_location} onChange={e => setNewSourced({...newSourced, preferred_location: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Source Platform *</label>
+                      <select value={newSourced.source_platform} onChange={e => setNewSourced({...newSourced, source_platform: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                        <option value="LinkedIn">LinkedIn</option>
+                        <option value="GitHub">GitHub</option>
+                        <option value="Naukri">Naukri</option>
+                        <option value="Indeed">Indeed</option>
+                        <option value="Referral">Referral</option>
+                        <option value="Career Website">Career Website</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Source / Profile URL</label>
+                      <input type="url" value={newSourced.source_url} onChange={e => setNewSourced({...newSourced, source_url: e.target.value})} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">GitHub Username (Auto-Enrich Stats)</label>
+                      <input type="text" value={newSourced.github_username} onChange={e => setNewSourced({...newSourced, github_username: e.target.value})} placeholder="e.g. torvalds" className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Skills (comma separated)</label>
+                    <input type="text" value={newSourced.skills} onChange={e => setNewSourced({...newSourced, skills: e.target.value})} placeholder="Python, React, FastAPI, Docker" className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Initial Notes</label>
+                    <textarea value={newSourced.initial_notes} onChange={e => setNewSourced({...newSourced, initial_notes: e.target.value})} rows={2} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setShowAddSourcedModal(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Save Sourced Candidate</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Sourcing Header & Filter Bar */}
+          <div className="glass-card p-6 space-y-6">
+            <div className="flex flex-wrap justify-between items-center gap-4 border-b border-white/10 pb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-blue-400 flex items-center gap-2">
+                  <Users /> Candidate Sourcing & Social Profiles
+                </h2>
+                <p className="text-gray-400 text-sm">Manage multi-platform sourcing pipelines (LinkedIn, GitHub, Naukri, Indeed, Referrals)</p>
+              </div>
+              <button onClick={() => setShowAddSourcedModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg">
+                <UserPlus className="w-4 h-4" /> Add Sourced Candidate
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <input type="text" placeholder="Search by name, company..." value={sourcingFilter.search} onChange={e => setSourcingFilter({...sourcingFilter, search: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm" />
+              <select value={sourcingFilter.platform} onChange={e => setSourcingFilter({...sourcingFilter, platform: e.target.value})} className="bg-gray-800 border border-white/10 rounded-lg p-2.5 text-sm">
+                <option value="">All Sources</option>
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="GitHub">GitHub</option>
+                <option value="Naukri">Naukri</option>
+                <option value="Indeed">Indeed</option>
+                <option value="Referral">Referral</option>
+                <option value="Career Website">Career Website</option>
+              </select>
+              <input type="text" placeholder="Filter by skills..." value={sourcingFilter.skills} onChange={e => setSourcingFilter({...sourcingFilter, skills: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm" />
+              <input type="text" placeholder="Filter by location..." value={sourcingFilter.location} onChange={e => setSourcingFilter({...sourcingFilter, location: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-sm" />
+              <select value={sourcingFilter.stage} onChange={e => setSourcingFilter({...sourcingFilter, stage: e.target.value})} className="bg-gray-800 border border-white/10 rounded-lg p-2.5 text-sm">
+                <option value="">All Pipeline Stages</option>
+                <option value="Discovered">Discovered</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Interested">Interested</option>
+                <option value="Applied">Applied</option>
+                <option value="Interview">Interview</option>
+                <option value="Offer">Offer</option>
+                <option value="Hired">Hired</option>
+              </select>
+            </div>
+
+            {/* AI Ranking JD Input Box */}
+            <div className="bg-blue-950/40 border border-blue-500/20 p-4 rounded-xl space-y-2">
+              <label className="text-xs font-semibold text-blue-300 uppercase tracking-wider block">Candidate AI Ranking JD Context</label>
+              <div className="flex gap-2">
+                <input type="text" value={rankJdText} onChange={e => setRankJdText(e.target.value)} placeholder="Paste Job Description here to rank sourced candidates..." className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+          </div>
+
+          {/* Sourced Candidates Cards List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {sourcedCandidates.length > 0 ? (
+              sourcedCandidates.map(cand => (
+                <div key={cand.id} className="glass-card p-6 space-y-4 flex flex-col justify-between border border-white/10 hover:border-blue-500/30 transition-all">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-xl font-bold text-white">{cand.name}</h3>
+                        <p className="text-gray-400 text-xs">{cand.current_company || "Company N/A"} • {cand.preferred_location || "Location N/A"}</p>
+                      </div>
+                      <span className="px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full text-xs font-semibold">
+                        {cand.sources && cand.sources[0] ? cand.sources[0].source_platform : "Sourced"}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-1 text-xs text-gray-300">
+                      {cand.email && <p>📧 {cand.email}</p>}
+                      {cand.phone && <p>📞 {cand.phone}</p>}
+                      {cand.skills && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {cand.skills.split(',').map((s: string, idx: number) => (
+                            <span key={idx} className="bg-white/10 px-2 py-0.5 rounded text-[11px] text-gray-200">{s.trim()}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Social Profiles Info */}
+                    {cand.social_profiles && cand.social_profiles.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+                        <p className="text-xs font-semibold text-gray-400 uppercase">Social Profiles</p>
+                        {cand.social_profiles.map((sp: any, idx: number) => (
+                          <div key={idx} className="bg-black/30 p-2.5 rounded-lg text-xs space-y-1 border border-white/5">
+                            <div className="flex justify-between font-medium text-blue-400">
+                              <span>🔗 {sp.platform} ({sp.username || "Profile"})</span>
+                              <a href={sp.profile_url} target="_blank" rel="noreferrer" className="underline hover:text-white">View</a>
+                            </div>
+                            {sp.bio && <p className="text-gray-400 italic text-[11px] line-clamp-2">{sp.bio}</p>}
+                            {sp.platform === "GitHub" && (
+                              <div className="flex gap-3 text-[11px] text-gray-300 font-mono mt-1">
+                                <span>👥 {sp.followers} followers</span>
+                                <span>📁 {sp.repositories_count} repos</span>
+                                <span>⭐ {sp.total_stars} stars</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI Ranking Badge */}
+                    {cand.match_score !== null && cand.match_score !== undefined && (
+                      <div className="mt-3 p-3 bg-purple-950/40 border border-purple-500/20 rounded-lg flex justify-between items-center">
+                        <div>
+                          <p className="text-xs font-semibold text-purple-300">AI Rank Match Score</p>
+                          <p className="text-xs text-gray-400">{cand.recommendation || "Evaluated"}</p>
+                        </div>
+                        <span className="text-lg font-bold text-purple-400">{cand.match_score.toFixed(0)}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sourcing Pipeline Stage Actions */}
+                  <div className="pt-4 border-t border-white/10 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Pipeline Stage:</span>
+                      <span className="font-bold text-blue-400">{cand.status || "Discovered"}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {["Discovered", "Contacted", "Interested", "Applied", "Interview", "Offer", "Hired"].map(stg => (
+                        <button
+                          key={stg}
+                          onClick={() => handlePipelineMove(cand.id, stg)}
+                          className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${cand.status === stg ? 'bg-blue-600 text-white font-bold' : 'bg-white/5 hover:bg-white/15 text-gray-300'}`}
+                        >
+                          {stg}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => handleRankSourced(cand.id)}
+                      disabled={rankingId === cand.id}
+                      className="w-full mt-2 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 rounded-lg text-xs font-medium text-purple-200 transition-colors flex justify-center items-center gap-1"
+                    >
+                      {rankingId === cand.id ? "Calculating AI Rank..." : "⚡ Rank Candidate with AI"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-2 glass-card p-12 text-center text-gray-400">
+                <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                <p className="font-medium text-base">No sourced candidates match criteria.</p>
+                <p className="text-xs text-gray-500 mt-1">Click "Add Sourced Candidate" to source profiles from LinkedIn, GitHub, Naukri, or Indeed.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Lifecycle Management View */
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Create Job Modal */}
+          {showCreateJobModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+              <div className="bg-gray-900 border border-white/10 p-8 rounded-2xl max-w-xl w-full shadow-2xl relative my-auto">
+                <button onClick={() => setShowCreateJobModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+                <h3 className="text-2xl font-bold mb-6">Post New Job</h3>
+                <form onSubmit={handleCreateJobSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Job Title *</label>
+                    <input type="text" required value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Department</label>
+                      <input type="text" value={newJob.department} onChange={e => setNewJob({...newJob, department: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Location</label>
+                      <input type="text" value={newJob.location} onChange={e => setNewJob({...newJob, location: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Description *</label>
+                    <textarea required value={newJob.description} onChange={e => setNewJob({...newJob, description: e.target.value})} rows={3} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Requirements</label>
+                    <textarea value={newJob.requirements} onChange={e => setNewJob({...newJob, requirements: e.target.value})} rows={2} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setShowCreateJobModal(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Create Job</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Schedule Interview Modal */}
+          {showScheduleInterviewModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+              <div className="bg-gray-900 border border-white/10 p-8 rounded-2xl max-w-lg w-full shadow-2xl relative my-auto">
+                <button onClick={() => setShowScheduleInterviewModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+                <h3 className="text-2xl font-bold mb-6">Schedule Candidate Interview</h3>
+                <form onSubmit={handleScheduleInterviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Select Candidate *</label>
+                    <select required value={newInterview.candidate_id} onChange={e => setNewInterview({...newInterview, candidate_id: Number(e.target.value)})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                      <option value={0}>-- Select Candidate --</option>
+                      {candidates.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} (ID: {c.id})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Interviewer Name *</label>
+                    <input type="text" required value={newInterview.interviewer} onChange={e => setNewInterview({...newInterview, interviewer: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Scheduled Date & Time *</label>
+                    <input type="datetime-local" required value={newInterview.scheduled_at} onChange={e => setNewInterview({...newInterview, scheduled_at: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Interview Type</label>
+                    <select value={newInterview.interview_type} onChange={e => setNewInterview({...newInterview, interview_type: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                      <option value="Technical">Technical</option>
+                      <option value="System Design">System Design</option>
+                      <option value="HR">HR</option>
+                      <option value="Cultural Fit">Cultural Fit</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Meeting Link</label>
+                    <input type="url" value={newInterview.meeting_link} onChange={e => setNewInterview({...newInterview, meeting_link: e.target.value})} placeholder="https://meet.google.com/..." className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setShowScheduleInterviewModal(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Schedule Interview</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Create Offer Modal */}
+          {showCreateOfferModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+              <div className="bg-gray-900 border border-white/10 p-8 rounded-2xl max-w-lg w-full shadow-2xl relative my-auto">
+                <button onClick={() => setShowCreateOfferModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+                <h3 className="text-2xl font-bold mb-6">Generate Candidate Offer</h3>
+                <form onSubmit={handleCreateOfferSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Select Candidate *</label>
+                    <select required value={newOffer.candidate_id} onChange={e => setNewOffer({...newOffer, candidate_id: Number(e.target.value)})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                      <option value={0}>-- Select Candidate --</option>
+                      {candidates.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} (ID: {c.id})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Annual Salary (CTC) *</label>
+                    <input type="number" required value={newOffer.salary} onChange={e => setNewOffer({...newOffer, salary: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Currency</label>
+                    <select value={newOffer.currency} onChange={e => setNewOffer({...newOffer, currency: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                      <option value="USD">USD ($)</option>
+                      <option value="INR">INR (₹)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Offer Status</label>
+                    <select value={newOffer.status} onChange={e => setNewOffer({...newOffer, status: e.target.value})} className="w-full bg-gray-800 border border-white/10 rounded p-2 text-sm">
+                      <option value="Draft">Draft</option>
+                      <option value="Sent">Sent</option>
+                      <option value="Accepted">Accepted</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setShowCreateOfferModal(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">Create Offer</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Job Openings & Configurable Stages */}
+          <div className="glass-card p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-white/10 pb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-blue-400 flex items-center gap-2">
+                  💼 Active Jobs & Configurable Recruitment Stages
+                </h2>
+                <p className="text-gray-400 text-sm">Configure hiring stages per job posting</p>
+              </div>
+              <button onClick={() => setShowCreateJobModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2">
+                + Create Job Posting
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {jobs.length > 0 ? (
+                jobs.map(job => (
+                  <div key={job.id} className="bg-black/30 p-5 rounded-xl border border-white/10 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-lg text-white">{job.title}</h3>
+                        <p className="text-xs text-gray-400">{job.department || "Dept N/A"} • {job.location || "Remote"}</p>
+                      </div>
+                      <span className="px-2.5 py-0.5 bg-green-500/20 text-green-300 border border-green-500/30 rounded-full text-xs font-semibold">
+                        {job.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 line-clamp-2">{job.description}</p>
+                    
+                    <div className="pt-2">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Configured Stages</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.stages && job.stages.map((st: any) => (
+                          <span key={st.id} className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-0.5 rounded text-[11px]">
+                            {st.stage_order}. {st.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 text-sm italic col-span-2 text-center py-6">No jobs created yet. Click "Create Job Posting" to add your first job.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Scheduled Interviews & Offers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Interviews Card */}
+            <div className="glass-card p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <h3 className="text-lg font-bold text-blue-400">📅 Scheduled Interviews</h3>
+                <button onClick={() => setShowScheduleInterviewModal(true)} className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/30 rounded-lg text-xs font-semibold text-blue-200">
+                  + Schedule Interview
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[350px] overflow-y-auto">
+                {interviews.length > 0 ? (
+                  interviews.map(int => (
+                    <div key={int.id} className="bg-black/30 p-3.5 rounded-lg border border-white/5 space-y-1 text-xs">
+                      <div className="flex justify-between font-semibold text-white">
+                        <span>Cand ID #{int.candidate_id} - {int.interview_type}</span>
+                        <span className="text-blue-400">{int.status}</span>
+                      </div>
+                      <p className="text-gray-400">Interviewer: {int.interviewer} • Date: {new Date(int.scheduled_at).toLocaleString()}</p>
+                      {int.meeting_link && <a href={int.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 underline">Join Meeting</a>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-xs italic text-center py-4">No interviews scheduled yet.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Offers & Onboarding Card */}
+            <div className="glass-card p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <h3 className="text-lg font-bold text-blue-400">📜 Offers & Onboarding Status</h3>
+                <button onClick={() => setShowCreateOfferModal(true)} className="px-3 py-1.5 bg-green-600/30 hover:bg-green-600/50 border border-green-500/30 rounded-lg text-xs font-semibold text-green-200">
+                  + Generate Offer
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[350px] overflow-y-auto">
+                {offers.length > 0 ? (
+                  offers.map(off => (
+                    <div key={off.id} className="bg-black/30 p-3.5 rounded-lg border border-white/5 space-y-1 text-xs">
+                      <div className="flex justify-between font-semibold text-white">
+                        <span>Cand ID #{off.candidate_id} - Offer {off.currency} {off.salary.toLocaleString()}</span>
+                        <span className="text-green-400 font-bold">{off.status}</span>
+                      </div>
+                      <p className="text-gray-400">Sent Date: {off.sent_date ? new Date(off.sent_date).toLocaleDateString() : "Pending"}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-xs italic text-center py-2">No offer records available.</p>
+                )}
+
+                {onboardings.length > 0 && (
+                  <div className="pt-2 border-t border-white/10 space-y-2">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase">Active Onboarding Records</p>
+                    {onboardings.map(onb => (
+                      <div key={onb.id} className="bg-black/40 p-2.5 rounded-lg text-xs border border-white/5 flex justify-between">
+                        <div>
+                          <span className="font-semibold text-white">Candidate #{onb.candidate_id}</span>
+                          <p className="text-gray-400 text-[11px]">BGV: {onb.background_check_status} • Docs: {onb.document_verification}</p>
+                        </div>
+                        <span className="text-blue-400 font-bold text-[11px]">{onb.joining_status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Activity / Audit Logs Feed */}
+          <div className="glass-card p-6 space-y-4">
+            <h3 className="text-lg font-bold text-blue-400 border-b border-white/10 pb-3">📜 Candidate & Application Audit Logs</h3>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto font-mono text-xs">
+              {activityLogs.length > 0 ? (
+                activityLogs.map(log => (
+                  <div key={log.id} className="bg-black/40 p-2.5 rounded border border-white/5 flex justify-between text-gray-300">
+                    <div>
+                      <span className="text-blue-400 font-bold">[{log.action}]</span> <span className="text-gray-400">by {log.performer}:</span> {log.details}
+                    </div>
+                    <span className="text-[10px] text-gray-500 ml-4">{new Date(log.created_at).toLocaleTimeString()}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-xs italic text-center py-4">No audit logs recorded yet.</p>
+              )}
+            </div>
           </div>
         </div>
       )}

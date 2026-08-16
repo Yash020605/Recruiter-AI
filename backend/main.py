@@ -9,6 +9,8 @@ from backend.utils.exceptions import InvalidDocumentError, DatabaseOperationErro
 from backend.utils.metrics import record_metric
 from backend.api.routes import router as api_router
 from backend.api.integrations import router as integrations_router
+from backend.api.lifecycle_routes import router as lifecycle_router
+from backend.api.sourcing_routes import router as sourcing_router
 import time
 
 from backend.database.migration import run_migrations
@@ -69,6 +71,8 @@ async def llm_timeout_exception_handler(request: Request, exc: LLMTimeoutError):
 # Include Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(integrations_router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
+app.include_router(lifecycle_router, prefix=settings.API_V1_STR)
+app.include_router(sourcing_router, prefix=settings.API_V1_STR)
 
 from backend.api.routes import execute_recruitment_workflow, RecruitmentWorkflowRequest, RecruitmentWorkflowResponse
 app.post("/api/recruitment/workflow", response_model=RecruitmentWorkflowResponse, tags=["recruitment"])(execute_recruitment_workflow)
