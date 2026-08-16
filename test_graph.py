@@ -1,5 +1,5 @@
 import os
-from backend.database.session import SessionLocal
+from backend.database.postgres import SessionLocal
 from backend.database.models import Candidate
 from backend.workflows.recruiter_graph import recruiter_graph
 import logging
