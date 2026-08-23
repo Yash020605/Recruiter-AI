@@ -1,7 +1,7 @@
 import InterviewSection from "../components/interviews/InterviewSection";
 import { useState, useEffect } from 'react';
-import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail } from 'lucide-react';
-import api, { triggerReferenceCheck, addCandidateComment, getCandidateComments } from '../utils/api';
+import { LogOut, Users, Play, FileText, CheckCircle, UploadCloud, ChevronDown, ChevronUp, Trash2, Edit2, X, MessageSquare, Send, Shield, UserPlus, Mail, Download } from 'lucide-react';
+import api, { triggerReferenceCheck, addCandidateComment, getCandidateComments, exportCandidatesCsv, exportAnalyticsCsv, exportCandidateReport } from '../utils/api';
 
 interface Props {
   onLogout: () => void;
@@ -126,6 +126,11 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   // --- Collaboration & Verification States & Handlers ---
   const [refereeEmail, setRefereeEmail] = useState("");
+
+  // Inline validation errors
+  const [jdError, setJdError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleTriggerRefCheck = async (candidateId: number) => {
     if (!refereeEmail.trim()) return;
@@ -269,6 +274,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleUpload = async () => {
     if (!file) return;
+    setUploadError("");
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -278,9 +284,9 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       });
       setFile(null);
       fetchCandidates();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload failed", error);
-      alert("Failed to upload resume.");
+      setUploadError(error.response?.data?.detail || "Failed to upload resume. Only PDF, DOCX and TXT files are supported.");
     } finally {
       setUploading(false);
     }
@@ -288,9 +294,10 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleAnalyze = async (candidateId: number) => {
     if (!jdText.trim()) {
-      alert("Please enter a Job Description first.");
+      setJdError("Please enter a Job Description before analyzing.");
       return;
     }
+    setJdError("");
     setAnalyzingId(candidateId);
     setShowModal(true);
     setModalStep(0);
@@ -309,9 +316,10 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleRunWorkflow = async (candidateId: number) => {
     if (!jdText.trim()) {
-      alert("Please enter a Job Description first.");
+      setJdError("Please enter a Job Description before running the workflow.");
       return;
     }
+    setJdError("");
     setWorkflowRunningId(candidateId);
     try {
       await api.post('/recruitment/workflow', {
@@ -351,16 +359,16 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
 
   const handleJobMatch = async () => {
     if (!selectedCandidateId) {
-      alert("Please select a candidate first.");
+      setMatchingError("Please select a candidate first.");
       return;
     }
     if (!matchingJd.trim()) {
-      alert("Please enter a Job Description.");
+      setMatchingError("Please enter a Job Description.");
       return;
     }
-    setIsMatchingLoading(true);
     setMatchingError(null);
     setMatchingResult(null);
+    setIsMatchingLoading(true);
     try {
       const res = await api.post('/job/match', {
         candidate_id: selectedCandidateId,
@@ -949,6 +957,7 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               >
                 {uploading ? 'Uploading...' : 'Upload Candidate'}
               </button>
+              {uploadError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1">⚠ {uploadError}</p>}
 
               <div className="mt-4 border-t border-gray-700 pt-4">
                 <button 
@@ -971,8 +980,9 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
               className="w-full flex-grow bg-white/5 border border-white/10 rounded p-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none min-h-[300px]"
               placeholder="Enter Job Description here..."
               value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
+              onChange={(e) => { setJdText(e.target.value); if (e.target.value.trim()) setJdError(""); }}
             ></textarea>
+            {jdError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1">⚠ {jdError}</p>}
           </div>
         </div>
 
@@ -982,9 +992,19 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
             <h2 className="text-xl font-semibold flex items-center">
               <Users className="mr-2 text-blue-500" /> Candidate Pool
             </h2>
-            <button onClick={fetchCandidates} className="text-sm px-3 py-1 bg-white/10 hover:bg-white/20 rounded transition-colors">
-              ↻ Refresh List
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => { setIsExporting(true); try { await exportCandidatesCsv(); } catch(e) { alert("Export failed"); } finally { setIsExporting(false); }}}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors border border-green-500/20"
+                title="Export all candidates as CSV"
+              >
+                <Download className="w-4 h-4" /> {isExporting ? 'Exporting...' : 'Export CSV'}
+              </button>
+              <button onClick={fetchCandidates} className="text-sm px-3 py-1 bg-white/10 hover:bg-white/20 rounded transition-colors">
+                ↻ Refresh List
+              </button>
+            </div>
           </div>
           
           {/* Filters Section */}
@@ -1167,11 +1187,20 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
                       <div className="mb-6 pb-6 border-b border-white/10">
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="text-sm uppercase font-bold text-gray-400 tracking-wider">Recruitment Details</h4>
-                          {role !== 'hiring_manager' && (
-                            <button onClick={() => setEditCandidate({...c})} className="text-xs px-2 py-1 bg-white/5 hover:bg-white/10 rounded transition-colors flex items-center">
-                              <Edit2 className="w-3 h-3 mr-1"/> Edit
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => { try { await exportCandidateReport(c.id); } catch(e) { alert("Export failed"); }}}
+                              className="text-xs px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded transition-colors flex items-center gap-1 border border-green-500/20"
+                              title="Download candidate report as CSV"
+                            >
+                              <Download className="w-3 h-3"/> Report
                             </button>
-                          )}
+                            {role !== 'hiring_manager' && (
+                              <button onClick={() => setEditCandidate({...c})} className="text-xs px-2 py-1 bg-white/5 hover:bg-white/10 rounded transition-colors flex items-center">
+                                <Edit2 className="w-3 h-3 mr-1"/> Edit
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
@@ -1723,8 +1752,15 @@ const HRDashboard: React.FC<Props> = ({ onLogout, role }) => {
       ) : (
         <div className="space-y-8 animate-in fade-in duration-300">
           <div className="glass-card p-6">
-            <h2 className="text-2xl font-bold mb-6 flex items-center text-blue-400 border-b border-white/10 pb-4">
-              📊 Diversity & Inclusion Analytics
+            <h2 className="text-2xl font-bold mb-6 flex items-center justify-between text-blue-400 border-b border-white/10 pb-4">
+              <span>📊 Diversity & Inclusion Analytics</span>
+              <button
+                onClick={async () => { setIsExporting(true); try { await exportAnalyticsCsv(); } catch(e) { alert("Export failed"); } finally { setIsExporting(false); }}}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors border border-green-500/20"
+              >
+                <Download className="w-4 h-4" /> {isExporting ? 'Exporting...' : 'Export Analytics CSV'}
+              </button>
             </h2>
 
             {isDiversityLoading || !diversityData ? (

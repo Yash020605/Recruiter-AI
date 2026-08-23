@@ -1,96 +1,276 @@
-# Recruiter AI: Autonomous Agentic HR Platform
+# Recruiter AI — Autonomous Agentic HR Platform
 
-![Recruiter AI](https://img.shields.io/badge/Status-MVP-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![React](https://img.shields.io/badge/React-18-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.104-teal)
+![Status](https://img.shields.io/badge/Status-Live-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![React](https://img.shields.io/badge/React-18-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110-teal) ![LangGraph](https://img.shields.io/badge/LangGraph-0.1-orange)
 
-Recruiter AI is a cutting-edge, stateful multi-agent recruitment platform designed to automate and augment the entire hiring lifecycle. By orchestrating a swarm of specialized AI agents (using LangGraph and LangChain), this platform parses resumes, evaluates candidate skills against job descriptions, and triggers automated integrations with industry-standard HR tools.
+Recruiter AI is a full-stack, multi-agent hiring platform that automates the entire recruitment lifecycle. It uses LangGraph-orchestrated AI agents to parse resumes, score candidates against job descriptions, generate communications, and provide hiring analytics — all in a real-time React dashboard.
+
+---
 
 ## 🌍 Live Deployment
-- **Frontend (Vercel):** [https://recruiter-ai-rskq-ph26xer9s-yashlimbhore-gmailcoms-projects.vercel.app](https://recruiter-ai-rskq-ph26xer9s-yashlimbhore-gmailcoms-projects.vercel.app)
-- **Backend API (Railway):** [https://recruiter-ai-production-9983.up.railway.app](https://recruiter-ai-production-9983.up.railway.app)
-## 🚀 Features
 
-- **Multi-Agent Evaluation:** Utilizes stateful LangGraph workflows to score candidate profiles autonomously. Agents extract skills, compare them to the Job Description, and assign a match score.
-- **Background Processing:** AI evaluations are pushed to background tasks, enabling non-blocking, asynchronous analysis of hundreds of candidates at once.
-- **Interactive HR Dashboard:** A highly dynamic React dashboard with real-time websocket integration, enabling recruiters to view status updates live.
-- **Third-Party Integrations:** API-ready endpoints for initiating background checks (AuthBridge), triggering technical assessments (HackerEarth), syncing ATS records (Zoho Recruit), and onboarding (Keka HRMS).
-- **AI Chat Assistant:** A built-in LLM-powered mentor/assistant restricted to retrieving only HR and candidate-related insights.
+| Service | URL |
+|---------|-----|
+| **Frontend (Vercel)** | https://recruiter-jet.vercel.app |
+| **Backend API (Railway)** | https://recruiter-ai-backend-production-1c27.up.railway.app |
+| **API Docs (Swagger)** | https://recruiter-ai-backend-production-1c27.up.railway.app/docs |
 
-## 👥 Role-Based Access Control (RBAC)
+### Demo Credentials (one-click login, no password required)
+| Role | Button | Access |
+|------|--------|--------|
+| Admin | Login as Admin | Full access + admin panel + analytics |
+| Recruiter | Login as Recruiter | Upload, analyze, email, export |
+| Hiring Manager | Login as Manager | View candidates, approve, comment |
 
-The platform is designed with three distinct user roles, each with specific permissions:
+---
 
-### 🎯 Recruiter
-The primary operator of the platform.
-- **Upload:** Upload and parse candidate resumes.
-- **Analyze:** Trigger the multi-agent evaluation pipeline.
-- **Chat:** Ask the AI assistant questions about candidate matching.
+## ✅ Features
 
-### 👔 Hiring Manager
-The decision-maker reviewing the recruiter's shortlisted candidates.
-- **View:** Access the dashboard to view candidate profiles, match scores, and parsed skills.
-- **Comment:** Leave feedback on specific candidate profiles.
-- **Approve:** Finalize decisions based on AI recommendations.
+### Candidate Pipeline Dashboard
+- Kanban-style pipeline board with stages: New → Screening → Shortlisted → Interview Scheduled → Offer Sent → Hired / Rejected
+- Real-time status updates with journey timeline per candidate
+- Filter by name, score, skills, notice period, recommendation
 
-### 🛡️ Admin
-The system overseer.
-- **Manage Users:** Create, edit, and delete user accounts (Recruiters, Hiring Managers).
-- **System Monitoring:** View platform analytics (total candidates, processed resumes, average scores).
-- **Logs:** Access system and agent execution logs for debugging.
+### Resume Upload & Processing
+- Upload PDF, DOCX, or TXT resumes
+- LangGraph multi-agent pipeline extracts: skills, experience, education, projects, certifications, CTC, notice period, location
+- Background processing — non-blocking, polls for completion
 
-## 🏗️ System Architecture
+### Job Requirement Matching
+- Paste any Job Description to analyze a candidate
+- AI returns match score (0–100), matched skills, missing skills, extra skills, and a fit summary
+- Full E2E screening workflow available per candidate
 
-The repository is split into two primary components:
+### Interview Scheduling
+- Schedule interviews with date, time, mode (Online/In-person), and meeting link
+- Edit, update status, and delete interviews
+- Interview stats dashboard (Scheduled / Completed / Cancelled)
 
-### 1. Backend (`/backend`)
-- **Framework:** FastAPI
-- **Database:** PostgreSQL/SQLite via SQLAlchemy ORM
-- **Agent Orchestration:** LangGraph & LangChain (OpenAI/Nemotron models)
-- **File Processing:** PyPDF2 for resume parsing
-- **Concurrency:** FastAPI BackgroundTasks and Websockets
+### Candidate Communication
+- Generate AI-drafted emails: Interview Invitation, Rejection, Job Offer, Status Update
+- Editable in-modal before sending
+- One-click copy to clipboard
 
-### 2. Frontend (`/react-frontend`)
-- **Framework:** React + Vite
-- **Styling:** Tailwind CSS + Lucide Icons
-- **State Management:** React Hooks
-- **Communication:** Axios REST calls & native WebSocket connections
+### Export Functionality
+- **Export all candidates** as CSV (name, score, recommendation, CTC, skills, integrations)
+- **Export hiring analytics** as CSV (selection rate, rejection rate, avg scores)
+- **Export individual candidate report** as CSV from their expanded card
 
-## 🛠️ Setup & Installation
+### Input Validation
+- Inline error messages for: missing JD before analysis, upload failures (wrong format/empty file), missing candidate selection for job matching
+- No more `alert()` popups — errors display inline next to the relevant field
+
+### D&I Analytics
+- Gender, education, experience, and location distribution charts
+- Hiring funnel visualization
+- Selection rate and rejection rate metrics
+
+### Admin Panel
+- User management (create, delete recruiters/hiring managers)
+- System performance metrics (parse time, AI response time, API latency)
+- Job matching statistics and skill gap analysis
+- Live system logs viewer
+
+### AI Chat Assistant
+- Floating chat widget (recruiter/admin only)
+- Ask natural language questions about candidates and hiring insights
+
+### Third-Party Integrations (mocked)
+- Zoho Recruit ATS sync
+- HackerEarth technical assessment invite
+- AuthBridge background verification
+- Keka HRMS onboarding
+
+---
+
+## 🏗️ Architecture
+
+```
+react-frontend/          # React + Vite + TypeScript + Tailwind CSS
+backend/
+  api/routes.py          # All FastAPI endpoints
+  agents/                # LangGraph agent nodes
+    screening_agent.py   # Resume parsing (skills, experience, education)
+    communication_agent.py  # Email generation
+  workflows/
+    recruiter_graph.py   # Main LangGraph pipeline
+    recruitment_workflow.py  # E2E screening workflow
+  tools/
+    keyword_extractor.py # JD keyword extraction
+  database/              # SQLAlchemy models + migrations
+  config/settings.py     # Environment config (Pydantic Settings)
+```
+
+---
+
+## 🛠️ Local Setup
 
 ### Prerequisites
-- Node.js (v18+)
-- Python (3.10+)
+- Node.js 18+
+- Python 3.11+
+- Git
 
-### Backend Initialization
+### 1. Clone
+```bash
+git clone https://github.com/yashlimbhore-afk/Recruiter.git
+cd Recruiter
+```
+
+### 2. Backend
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
 ```
-*Configure your `.env` file in the backend root with your API keys (OpenAI, Zoho, Keka, etc.).*
 
+Create a `.env` file in the `backend/` directory:
+```ini
+# Required
+GEMINI_API_KEY=your_google_gemini_api_key
+
+# Database (defaults to SQLite for local dev)
+DATABASE_URL=sqlite:///./recruiter.db
+
+# JWT
+SECRET_KEY=your_secret_key_here
+
+# Optional integrations (mocked if not set)
+ZOHO_CLIENT_ID=
+KEKA_API_KEY=
+HACKEREARTH_CLIENT_SECRET=
+AUTHBRIDGE_TOKEN=
+```
+
+Run database migrations:
+```bash
+cd backend
+alembic upgrade head
+```
+
+Start the backend:
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Frontend Initialization
+API docs available at: http://localhost:8000/docs
+
+### 3. Frontend
 ```bash
 cd react-frontend
 npm install
+```
+
+Create a `.env` file in `react-frontend/`:
+```ini
+VITE_API_URL=http://localhost:8000
+```
+
+Start the frontend:
+```bash
 npm run dev
 ```
 
-## 🔐 Environment Variables (.env)
-To enable the "Action" integrations and LLM reasoning, a `.env` file is required in the `/backend` directory:
-```ini
-OPENAI_API_KEY="sk-..."
-NVIDIA_API_KEY="nvapi-..."
-ZOHO_CLIENT_ID="..."
-HACKEREARTH_CLIENT_SECRET="..."
-AUTHBRIDGE_TOKEN="..."
-KEKA_API_KEY="..."
-DATABASE_URL="sqlite:///./recruiter.db"
+App available at: http://localhost:5173
+
+---
+
+## 🚀 Deployment
+
+### Backend → Railway
+1. Connect your GitHub repo to Railway
+2. Set the root directory to `/` (Railway auto-detects the `Procfile` or `main.py`)
+3. Add environment variables in Railway dashboard:
+   - `GEMINI_API_KEY`
+   - `DATABASE_URL` (Railway provides a PostgreSQL URL)
+   - `SECRET_KEY`
+4. Railway auto-deploys on every push to `main`
+
+### Frontend → Vercel
+1. Connect your GitHub repo to Vercel
+2. Set **Root Directory** to `react-frontend`
+3. Add environment variable in Vercel dashboard:
+   - `VITE_API_URL` = your Railway backend URL
+4. Vercel auto-deploys on every push to `main`
+
+---
+
+## 🔑 Getting a Free Gemini API Key
+
+1. Go to [aistudio.google.com](https://aistudio.google.com)
+2. Click **Get API key** → **Create API key**
+3. Copy and add to Railway environment variables as `GEMINI_API_KEY`
+
+Free tier: 15 requests/minute, 1500 requests/day — sufficient for demos and development.
+
+---
+
+## 👥 Role-Based Access Control
+
+| Feature | Admin | Recruiter | Hiring Manager |
+|---------|-------|-----------|----------------|
+| Upload resumes | ✅ | ✅ | ❌ |
+| Analyze candidates | ✅ | ✅ | ❌ |
+| View candidates | ✅ | ✅ | ✅ |
+| Edit candidate details | ✅ | ✅ | ❌ |
+| Approve candidates | ✅ | ❌ | ✅ |
+| Delete candidates | ✅ | ❌ | ❌ |
+| Export CSV | ✅ | ✅ | ✅ (report only) |
+| Schedule interviews | ✅ | ✅ | ❌ |
+| Generate emails | ✅ | ✅ | ✅ |
+| Admin panel | ✅ | ❌ | ❌ |
+| AI chat | ✅ | ✅ | ❌ |
+
+---
+
+## 🧠 AI Pipeline (LangGraph)
+
+```
+Upload Resume
+     │
+     ▼
+Resume Parser Node (text extraction)
+     │
+     ▼
+Parallel Agent Nodes:
+  ├── Skills Extractor
+  ├── Experience Extractor
+  ├── Education Extractor
+  ├── Projects & Certifications Extractor
+  └── Recruitment Details Extractor (CTC, notice, location)
+     │
+     ▼
+JD Analysis Node (keyword extraction)
+     │
+     ▼
+Evaluation Node (match scoring)
+     │
+     ▼
+Recommendation Node (hire/reject reasoning)
+     │
+     ▼
+Save to Database + Update Status
 ```
 
+---
+
+## 📦 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, TypeScript, Tailwind CSS, Lucide Icons |
+| Backend | FastAPI, SQLAlchemy, Alembic, Pydantic |
+| AI / LLM | LangGraph, LangChain, Google Gemini (gemini-1.5-flash) |
+| Database | PostgreSQL (Railway) / SQLite (local) |
+| Auth | JWT (PyJWT + passlib bcrypt) |
+| Deployment | Vercel (frontend) + Railway (backend) |
+
+---
+
 ## 🤝 Contributing
-Built during an Agentic AI Internship to demonstrate the power of autonomous AI workflows in enterprise environments. Contributions and improvements to the agentic reasoning loops are welcome.
+
+Built during an Agentic AI Internship to demonstrate autonomous AI workflows in enterprise HR. PRs welcome for improvements to agent reasoning, UI enhancements, or new integrations.

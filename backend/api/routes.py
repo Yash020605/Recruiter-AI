@@ -1283,3 +1283,161 @@ def delete_interview(
     db.commit()
 
     return None
+
+# --- Export Endpoints ---
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
+@router.get(
+    "/export/candidates/csv",
+    tags=["export"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def export_candidates_csv(db: Session = Depends(get_db)):
+    """Export all candidates as a CSV file."""
+    candidates = db.query(Candidate).order_by(Candidate.id.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        "ID", "Name", "Status", "Match Score", "Recommendation",
+        "Current Company", "Current CTC", "Expected CTC", "Notice Period",
+        "Preferred Location", "Employment Type", "Immediate Joiner",
+        "Gender", "Total Experience (yrs)", "Highest Education",
+        "Hiring Success %", "Predicted Retention (months)",
+        "Zoho ID", "HackerEarth Score", "AuthBridge BGV Status", "Keka Employee ID"
+    ])
+
+    for c in candidates:
+        rec = c.recommendation or ""
+        if ":" in rec:
+            rec = rec.split(":")[0].strip()
+
+        writer.writerow([
+            c.id,
+            c.name or "",
+            c.status or "",
+            c.match_score if c.match_score is not None else "",
+            rec,
+            c.current_company or "",
+            c.current_ctc or "",
+            c.expected_ctc or "",
+            c.notice_period or "",
+            c.preferred_location or "",
+            getattr(c, "employment_type", "") or "",
+            getattr(c, "immediate_joiner", "") or "",
+            getattr(c, "gender", "") or "",
+            getattr(c, "total_experience_years", "") or "",
+            getattr(c, "highest_education_level", "") or "",
+            getattr(c, "hiring_success_probability", "") or "",
+            getattr(c, "predicted_retention_months", "") or "",
+            getattr(c, "zoho_candidate_id", "") or "",
+            getattr(c, "hackerearth_score", "") or "",
+            getattr(c, "authbridge_bgv_status", "") or "",
+            getattr(c, "keka_employee_id", "") or "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=candidates_export.csv"}
+    )
+
+
+@router.get(
+    "/export/analytics/csv",
+    tags=["export"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER]))]
+)
+def export_analytics_csv(db: Session = Depends(get_db)):
+    """Export hiring analytics summary as a CSV file."""
+    total = db.query(Candidate).count()
+    hired = db.query(Candidate).filter(Candidate.status.in_(["Hired", "Selected"])).count()
+    rejected = db.query(Candidate).filter(Candidate.status == "Rejected").count()
+    analyzed = db.query(Candidate).filter(Candidate.match_score.isnot(None)).count()
+
+    scores = [c.match_score for c in db.query(Candidate).filter(Candidate.match_score.isnot(None)).all()]
+    avg_score = round(sum(scores) / len(scores), 2) if scores else 0
+
+    job_matches = db.query(JobMatch).all()
+    total_matches = len(job_matches)
+    avg_match = round(sum(m.match_score for m in job_matches) / total_matches, 2) if total_matches else 0
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(["Metric", "Value"])
+    writer.writerow(["Total Candidates", total])
+    writer.writerow(["Analyzed Candidates", analyzed])
+    writer.writerow(["Hired / Selected", hired])
+    writer.writerow(["Rejected", rejected])
+    writer.writerow(["Selection Rate (%)", round(hired / total * 100, 2) if total else 0])
+    writer.writerow(["Rejection Rate (%)", round(rejected / total * 100, 2) if total else 0])
+    writer.writerow(["Average AI Match Score", avg_score])
+    writer.writerow(["Total Job Matches Run", total_matches])
+    writer.writerow(["Average Job Match Score", avg_match])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=hiring_analytics.csv"}
+    )
+
+
+@router.get(
+    "/export/candidate/{candidate_id}/report",
+    tags=["export"],
+    dependencies=[Depends(RoleChecker([UserRole.ADMIN, UserRole.RECRUITER, UserRole.HIRING_MANAGER]))]
+)
+def export_candidate_report(candidate_id: int, db: Session = Depends(get_db)):
+    """Export a single candidate's full AI report as CSV."""
+    c = candidate_repo.get(db, id=candidate_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(["Field", "Value"])
+    writer.writerow(["Name", c.name or ""])
+    writer.writerow(["Status", c.status or ""])
+    writer.writerow(["Match Score", c.match_score if c.match_score is not None else "Not analyzed"])
+    writer.writerow(["Recommendation", c.recommendation or ""])
+    writer.writerow(["Current Company", c.current_company or ""])
+    writer.writerow(["Current CTC", c.current_ctc or ""])
+    writer.writerow(["Expected CTC", c.expected_ctc or ""])
+    writer.writerow(["Notice Period", c.notice_period or ""])
+    writer.writerow(["Preferred Location", c.preferred_location or ""])
+
+    try:
+        matched = json.loads(c.matched_skills) if c.matched_skills else []
+        writer.writerow(["Matched Skills", ", ".join(matched)])
+    except Exception:
+        writer.writerow(["Matched Skills", ""])
+
+    try:
+        missing = json.loads(c.missing_skills) if c.missing_skills else []
+        writer.writerow(["Missing Skills", ", ".join(missing)])
+    except Exception:
+        writer.writerow(["Missing Skills", ""])
+
+    try:
+        skills = json.loads(c.skills) if c.skills else []
+        writer.writerow(["All Skills", ", ".join(skills)])
+    except Exception:
+        writer.writerow(["All Skills", ""])
+
+    writer.writerow(["Hiring Success Probability", getattr(c, "hiring_success_probability", "") or ""])
+    writer.writerow(["Predicted Retention (months)", getattr(c, "predicted_retention_months", "") or ""])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=candidate_{candidate_id}_report.csv"}
+    )

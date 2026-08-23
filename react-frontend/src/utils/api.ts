@@ -25,3 +25,24 @@ export const getCandidateComments = (candidateId: number) =>
 
 export const triggerReferenceCheck = (candidateId: number, refereeEmail: string) =>
   api.post(`/candidates/${candidateId}/reference-check`, { referee_email: refereeEmail });
+
+// --- Export helpers ---
+const getAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('token')}`,
+});
+
+const downloadCsv = async (url: string, filename: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'https://recruiter-ai-backend-production-1c27.up.railway.app';
+  const res = await fetch(`${API_URL}/api/v1${url}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Export failed');
+  const blob = await res.blob();
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+export const exportCandidatesCsv = () => downloadCsv('/export/candidates/csv', 'candidates_export.csv');
+export const exportAnalyticsCsv = () => downloadCsv('/export/analytics/csv', 'hiring_analytics.csv');
+export const exportCandidateReport = (id: number) => downloadCsv(`/export/candidate/${id}/report`, `candidate_${id}_report.csv`);
